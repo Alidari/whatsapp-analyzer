@@ -1,0 +1,174 @@
+import { Colors } from '../lib/colors'
+
+/**
+ * Web StoryMode'daki generateStorySlides fonksiyonunun mobil versiyonu.
+ * Icon'lar emoji olarak, gradient'ler renk array'leri olarak döner.
+ */
+export function generateStorySlides(metrics) {
+  const m = metrics
+  const g = m.general
+  const senders = g.senders
+
+  return [
+    // ── 1: Genel Bakış ──
+    {
+      question: 'Bu zamana kadar aranızda ne kadar büyük bir tarih yattığını merak ettin mi?',
+      gradient: ['#0b141b', '#006c54', '#004d3d'],
+      icon: '💬',
+      badge: 'GENEL BAKIŞ',
+      title: `${g.total_messages.toLocaleString('tr-TR')} mesaj, ${g.date_range.days_span} gün.`,
+      titleAccent: Colors.primary,
+      subtitle: `${senders.join(' & ')} arasında toplam ${g.total_words.toLocaleString('tr-TR')} kelime yazıldı. En yoğun gününüz ${g.busiest_day.date} (${g.busiest_day.count} mesaj).`,
+    },
+
+    // ── 2: Vibe Check ──
+    {
+      question: 'Peki sohbetinizin genel havası nasıl? Sence toksik misiniz yoksa romantik mi?',
+      gradient: m.vibe_check.overall_mood === 'Toxic' ? ['#0b141b', '#93000a', '#690005'] : ['#0b141b', '#006c54', '#570067', '#0b141b'],
+      icon: '💕',
+      badge: 'VIBE CHECK',
+      title: `Sohbetin havası: ${m.vibe_check.mood_label_tr}`,
+      titleAccent: Colors.tertiary,
+      subtitle: `%${m.vibe_check.positive_pct} pozitif, %${m.vibe_check.negative_pct} negatif, %${m.vibe_check.neutral_pct} nötr.`,
+    },
+
+    // ── 3: Eğlence ──
+    {
+      question: 'Gelelim can alıcı konuya... Birbirinizi ne kadar güldürüyorsunuz?',
+      gradient: ['#0b141b', '#570067', '#350040'],
+      icon: '😂',
+      badge: 'GÜLME KRİZLERİ',
+      title: 'Gülmekten karnınıza ağrılar giren o anlara bakalım!',
+      titleAccent: Colors.primary,
+      subtitle: 'Yapay zekanın bulduğu "En Eğlenceli Sohbetler".',
+    },
+
+    // ── 4: Streak ──
+    {
+      question: 'Hiç aralıksız, her gün konuşarak ne kadar uzun süre mesajlaştığınızı biliyor musun?',
+      gradient: ['#0b141b', '#006c54', '#004d3d'],
+      icon: '🔥',
+      badge: 'KONUŞMA STREAKİ',
+      title: `${m.streak.longest_streak} gün boyunca birbirinizden hiç kopmadınız!`,
+      titleAccent: Colors.primary,
+      subtitle: `${m.streak.total_active_days} gün aktif, %${m.streak.activity_rate_pct} aktivite oranı. İmrenilecek bir bağ!`,
+    },
+
+    // ── 5: Yanıt Süresi ──
+    {
+      question: 'Mesajlara anında dönen şimşek ile saatlerce bekleten hayalet kim peki?',
+      gradient: ['#0b141b', '#570067', '#350040'],
+      icon: '⚡',
+      badge: 'YANIT SÜRESİ',
+      title: `${m.response_times.fastest_responder} şimşek hızında cevap veriyor!`,
+      titleAccent: Colors.tertiary,
+      subtitle: m.response_times.fun_fact,
+    },
+
+    // ── 6: FBI Ajanı ──
+    {
+      question: 'Sorgu odasında gibi hissettiren birilerine denk geldik sanki...',
+      gradient: ['#0b141b', '#0369a1', '#082f49'],
+      icon: '🕵️',
+      badge: 'FBI AJANI',
+      title: `${m.word_quirks.question_king} tam bir FBI ajanı gibi her şeyi sorguluyor!`,
+      titleAccent: Colors.primary,
+      subtitle: 'Sohbet boyunca en çok soru soran kişi oldu. Her şeyin bir cevabı olmalı değil mi?',
+    },
+
+    // ── 7: Roman Yazarı ──
+    {
+      question: 'Kim her şeyi destan gibi 10 paragraf anlatıyor, kim sadece \'tm\' deyip geçiyor?',
+      gradient: ['#0b141b', '#006c54', '#004d3d'],
+      icon: '✍️',
+      badge: 'ROMAN YAZARI',
+      title: `${m.message_style.novelist} destan yazıyor, ${m.message_style.telegraphist} "tm" diyor.`,
+      titleAccent: Colors.primary,
+      subtitle: `${m.message_style.novelist}: ort ${m.message_style.per_sender[m.message_style.novelist]?.avg_words || 0} kelime.`,
+    },
+
+    // ── 8: Emoji Evreni ──
+    {
+      question: 'Kelimelerin bittiği yerde emojiler konuşur. Peki aranızdaki emoji şampiyonu kim?',
+      gradient: ['#0b141b', '#570067', '#350040'],
+      icon: '🎭',
+      badge: 'EMOJİ EVRENİ',
+      title: `Toplam ${m.emoji_universe.total_emojis} emoji kullanıldı!`,
+      titleAccent: Colors.tertiary,
+      subtitle: `${m.emoji_universe.emoji_champion} emoji şampiyonu! Nadir emojiler: ${m.emoji_universe.rare_emojis?.join('') || '🤷'}`,
+    },
+
+    // ── 9: Barış Elçisi ──
+    {
+      question: 'Zor zamanlarda alttan alan ve kalp kırıklıklarını tamir eden barış elçisi sence kim?',
+      gradient: ['#0b141b', '#006c54', '#570067', '#0b141b'],
+      icon: '🕊️',
+      badge: 'BARIŞ ELÇİSİ',
+      title: `${m.peace_ambassador.ambassador} barışın mimarı!`,
+      titleAccent: Colors.primary,
+      subtitle: `${m.peace_ambassador.ambassador}, ${m.peace_ambassador.per_sender[m.peace_ambassador.ambassador]?.peace_count || 0} kez barışçıl ifade kullandı.`,
+    },
+
+    // ── 10: Gerginlik ──
+    {
+      question: 'Zaman zaman hararet yükselir... Aranızı ne kadar gergin tutuyorsunuz sence?',
+      gradient: m.argument_score.tension_index > 40 ? ['#0b141b', '#93000a', '#690005'] : ['#0b141b', '#0369a1', '#082f49'],
+      icon: m.argument_score.tension_index > 40 ? '🌡️' : '❄️',
+      badge: 'GERGİNLİK ENDEKSİ',
+      title: `Gerginlik skoru: ${m.argument_score.tension_index}/100`,
+      titleAccent: m.argument_score.tension_index > 40 ? Colors.error : Colors.secondary,
+      subtitle: `${m.argument_score.tension_label} • CAPS Kralı: ${m.argument_score.caps_lock_king}`,
+    },
+
+    // ── 11: Favori Kelime ──
+    {
+      question: 'Aranızda en çok hangi kelime geçiyor biliyor musun? Cevap seni şaşırtabilir!',
+      gradient: ['#0b141b', '#0369a1', '#082f49'],
+      icon: '📝',
+      badge: 'FAVORİ KELİME',
+      title: `En çok kullanılan kelime: "${m.word_cloud?.combined?.[0]?.word || '?'}"`,
+      titleAccent: Colors.secondary,
+      subtitle: (() => {
+        const top3 = m.word_cloud?.combined?.slice(0, 3) || []
+        return `Top 3: ${top3.map(w => `"${w.word}" (${w.count}x)`).join(', ')}`
+      })(),
+    },
+
+    // ── 12: Küfür Raporu ──
+    ...(m.profanity ? [{
+      question: 'Ağzınız ne kadar bozuk merak ediyoruz... Küfür raporunuz hazır!',
+      gradient: m.profanity.total_profanity > 50 ? ['#0b141b', '#93000a', '#690005'] : ['#0b141b', '#570067', '#350040'],
+      icon: m.profanity.total_profanity === 0 ? '😇' : '🤬',
+      badge: 'KÜFÜR RAPORU',
+      title: m.profanity.total_profanity === 0
+        ? 'Bu sohbette küfür yok! Tebrikler 👼'
+        : `Küfür şampiyonu: ${m.profanity.profanity_champion}`,
+      titleAccent: m.profanity.total_profanity === 0 ? Colors.primary : Colors.error,
+      subtitle: m.profanity.total_profanity === 0
+        ? 'Ne kadar kibar insanlarsınız! ✨'
+        : `Toplam ${m.profanity.total_profanity} küfür. ${m.profanity.profanity_density_label}`,
+    }] : []),
+
+    // ── 13: Buz Kırıcı ──
+    {
+      question: 'Sessizlikleri hep aynı kişi bozuyor desek... İlk mesajı kim daha çok atıyor?',
+      gradient: ['#0b141b', '#0369a1', '#082f49'],
+      icon: '👋',
+      badge: 'BUZ KIRICI',
+      title: `Sohbetleri hep ${m.routines?.icebreaker || ''} başlatıyor!`,
+      titleAccent: Colors.secondary,
+      subtitle: `Güne ${m.routines?.morning_sun || ''} "Günaydın" ile başlarken, geceleri faturayı ${m.routines?.night_owl_closer || ''} kesiyor. ☀️🌙`,
+    },
+
+    // ── 14: Toplam Zaman ──
+    {
+      question: 'Tüm mesajlaşmaları hiç durmadan yapsaydınız, kaç saatinizi alırdı?',
+      gradient: ['#0b141b', '#570067', '#350040'],
+      icon: '⏳',
+      badge: 'TOPLAM ZAMAN',
+      title: `Mesaide ${g.estimated_chat_time?.hours || 0} saat harcadınız!`,
+      titleAccent: Colors.tertiary,
+      subtitle: `Aralıksız ${g.estimated_chat_time?.hours || 0} saat ${g.estimated_chat_time?.minutes || 0} dakikanız WhatsApp'ta geçti.`,
+    },
+  ]
+}

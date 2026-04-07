@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Anatomi",
+    "slug": "anatomi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "anatomi",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b141b"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anatomi.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b141b"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.anatomi.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
