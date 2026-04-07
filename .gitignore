@@ -1,0 +1,50 @@
+# ══════════════════════════════════════════════
+#  Anatomi — WhatsApp Analyzer .gitignore
+# ══════════════════════════════════════════════
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# ── Node / Frontend ──
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Database (kullanıcı verileri) ──
+backend/data/
+*.db
+*.sqlite3
+
+# ── Sohbet dosyaları (GİZLİLİK!) ──
+messages/
+*.txt
+!backend/test_chat.txt
+!requirements.txt
+!README.md
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── OS ──
+.DS_Store
+*.log
+
+# ── Ekran görüntüleri (opsiyonel) ──
+screen*.png
