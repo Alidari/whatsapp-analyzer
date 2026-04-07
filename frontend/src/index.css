@@ -23,14 +23,14 @@
   --color-inverse-primary: #006b53;
 
   /* ── Secondary Palette ── */
-  --color-secondary: #bbc3ff;
-  --color-secondary-container: #0231de;
-  --color-secondary-fixed: #dee0ff;
-  --color-secondary-fixed-dim: #bbc3ff;
-  --color-on-secondary: #001d93;
-  --color-on-secondary-container: #b1bbff;
-  --color-on-secondary-fixed: #000f5d;
-  --color-on-secondary-fixed-variant: #002ccd;
+  --color-secondary: #7dd3fc;
+  --color-secondary-container: #0369a1;
+  --color-secondary-fixed: #bae6fd;
+  --color-secondary-fixed-dim: #7dd3fc;
+  --color-on-secondary: #0c4a6e;
+  --color-on-secondary-container: #7dd3fc;
+  --color-on-secondary-fixed: #082f49;
+  --color-on-secondary-fixed-variant: #0284c7;
 
   /* ── Tertiary Palette ── */
   --color-tertiary: #f8acff;
