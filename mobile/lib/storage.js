@@ -1,4 +1,7 @@
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
+import * as Application from 'expo-application'
 
 const CLIENT_ID_KEY = 'anatomi_client_id'
 const JOB_ID_KEY = 'anatomi_job_id'
@@ -12,12 +15,31 @@ function generateUUID() {
 }
 
 export async function getClientId() {
-  let id = await AsyncStorage.getItem(CLIENT_ID_KEY)
-  if (!id) {
-    id = generateUUID()
-    await AsyncStorage.setItem(CLIENT_ID_KEY, id)
+  if (Platform.OS === 'web') {
+    let id = await AsyncStorage.getItem(CLIENT_ID_KEY)
+    if (!id) {
+      id = generateUUID()
+      await AsyncStorage.setItem(CLIENT_ID_KEY, id)
+    }
+    return id
   }
-  return id
+
+  // Native: Kalıcı Cihaz Kimliği
+  if (Platform.OS === 'android') {
+    return Application.androidId || 'unknown-android-id'
+  }
+  
+  if (Platform.OS === 'ios') {
+    let storedId = await SecureStore.getItemAsync(CLIENT_ID_KEY)
+    if (!storedId) {
+      storedId = await Application.getIosIdForVendorAsync()
+      if (!storedId) storedId = generateUUID()
+      await SecureStore.setItemAsync(CLIENT_ID_KEY, storedId)
+    }
+    return storedId
+  }
+  
+  return generateUUID()
 }
 
 export async function getJobId() {

@@ -34,7 +34,9 @@ export default function HistoryCard({ analysis, onPress, onDelete }) {
           <Text style={styles.chatName} numberOfLines={1}>
             {analysis.chat_name || 'İsimsiz Analiz'}
           </Text>
-          <Text style={styles.moodIcon}>{moodIcon}</Text>
+          <Text style={styles.moodIcon}>
+            {analysis.is_unlocked === false ? '🔒' : moodIcon}
+          </Text>
         </View>
 
         {/* Senders */}

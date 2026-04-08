@@ -9,6 +9,8 @@ import { Colors } from '../lib/colors'
 import { getHistory, getHistoryDetail, deleteHistoryItem } from '../lib/api'
 import HistoryCard from '../components/HistoryCard'
 
+import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
+
 export default function HistoryScreen() {
   const router = useRouter()
   const [analyses, setAnalyses] = useState([])
@@ -29,10 +31,51 @@ export default function HistoryScreen() {
   }, [])
 
   useEffect(() => {
+    loadRewarded()
     fetchHistory()
   }, [fetchHistory])
 
-  const handleSelect = async (id) => {
+  const handleSelect = async (item) => {
+    const { id, is_unlocked } = item
+    
+    // Kilitliyse Reklam Göster
+    if (!is_unlocked) {
+      Alert.alert(
+        "Kilitli Analiz 🔒",
+        "Bu raporu yeniden görüntülemek üzere kilidini açabilirsiniz.",
+        [
+          { text: 'İptal', style: 'cancel' },
+          { 
+            text: 'Kilidi Aç', 
+            onPress: async () => {
+              try {
+                setLoadingId(id)
+                const completed = await showRewardedAsync()
+                if (completed) {
+                  // but we already have an api function `unlockHistory`! Let's import it.
+                  import('../lib/api').then(async ({ unlockHistory }) => {
+                    await unlockHistory(id)
+                    // Then load Dashboard
+                    loadDashboard(id)
+                  })
+                }
+              } catch (e) {
+                Alert.alert('Tamamlanamadı', e.message)
+              } finally {
+                setLoadingId(null)
+              }
+            }
+          }
+        ]
+      )
+      return
+    }
+
+    // Açıksa direkt git
+    loadDashboard(id)
+  }
+
+  const loadDashboard = async (id) => {
     setLoadingId(id)
     try {
       const data = await getHistoryDetail(id)
@@ -68,7 +111,7 @@ export default function HistoryScreen() {
   }
 
   const handleNewAnalysis = () => {
-    router.push('/')
+    router.replace({ pathname: '/', params: { forceOpen: '1' } })
   }
 
   if (loading) {
@@ -123,7 +166,7 @@ export default function HistoryScreen() {
           renderItem={({ item }) => (
             <HistoryCard
               analysis={item}
-              onPress={() => handleSelect(item.id)}
+              onPress={() => handleSelect(item)}
               onDelete={() => handleDelete(item.id, item.chat_name || 'İsimsiz')}
             />
           )}
@@ -145,6 +188,9 @@ export default function HistoryScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       )}
+
+      {/* Banner Reklam */}
+      <AppBannerAd />
     </View>
   )
 }

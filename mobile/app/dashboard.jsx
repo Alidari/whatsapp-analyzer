@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { PieChart, BarChart } from 'react-native-chart-kit'
 import { Colors } from '../lib/colors'
 import MetricCard, { SectionBadge, BigNumber, StatRow, ProgressBar } from '../components/MetricCard'
+import { AppBannerAd } from '../components/Ads'
 
 const SCREEN_W = Dimensions.get('window').width
 
@@ -65,6 +66,12 @@ export default function DashboardScreen() {
     >
       {/* ═══ HEADER ═══ */}
       <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => router.replace('/')} 
+          style={styles.backBtn}
+        >
+          <Text style={{ fontSize: 28, color: Colors.primary, fontWeight: '600' }}>←</Text>
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
             Analiz <Text style={styles.headerAccent}>Sonuçları</Text>
@@ -286,6 +293,9 @@ export default function DashboardScreen() {
         </MetricCard>
       )}
 
+      {/* Banner Reklam */}
+      <AppBannerAd />
+
       {/* Footer padding */}
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -304,12 +314,18 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     marginBottom: 24,
   },
+  backBtn: {
+    marginRight: 12,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '900',
     color: Colors.onSurface,
     letterSpacing: -1,

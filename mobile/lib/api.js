@@ -12,7 +12,7 @@ import { getClientId } from './storage'
 // iOS simülatör için: localhost
 // Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
 const BASE_URL = __DEV__
-  ? 'http://192.168.1.100:8000'
+  ? 'http://192.168.1.40:8000'
   : 'https://anatomi.app'
 
 async function headers() {
@@ -26,9 +26,35 @@ async function headers() {
 //  Dosya Yükleme
 // ──────────────────────────────────────────────
 
-export async function uploadFile(fileUri, fileName) {
+import { Platform } from 'react-native'
+
+export async function uploadFile(fileUri, fileName, fileObj = null) {
   const clientId = await getClientId()
 
+  if (Platform.OS === 'web') {
+    const formData = new FormData()
+    if (fileObj) {
+      formData.append('file', fileObj)
+    } else {
+      const res = await fetch(fileUri)
+      const blob = await res.blob()
+      formData.append('file', new File([blob], fileName || 'chat.txt', { type: 'text/plain' }))
+    }
+
+    const resp = await fetch(`${BASE_URL}/api/analyze`, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Client-ID': clientId },
+    })
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      throw new Error(err.detail || `Sunucu hatası (${resp.status})`)
+    }
+    return resp.json()
+  }
+
+  // Native upload
   const result = await FileSystem.uploadAsync(
     `${BASE_URL}/api/analyze`,
     fileUri,
@@ -118,6 +144,28 @@ export async function renameHistoryItem(analysisId, newName) {
     method: 'PATCH',
     headers: h,
     body: JSON.stringify({ name: newName }),
+  })
+  return resp.ok
+}
+
+// ──────────────────────────────────────────────
+//  Ad & Quota Endpoints
+// ──────────────────────────────────────────────
+
+export async function earnQuota() {
+  const h = await headers()
+  const resp = await fetch(`${BASE_URL}/api/earn-quota`, {
+    method: 'POST',
+    headers: h,
+  })
+  return resp.ok
+}
+
+export async function unlockHistory(analysisId) {
+  const h = await headers()
+  const resp = await fetch(`${BASE_URL}/api/unlock-history/${analysisId}`, {
+    method: 'POST',
+    headers: h,
   })
   return resp.ok
 }

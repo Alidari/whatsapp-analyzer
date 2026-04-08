@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as DocumentPicker from 'expo-document-picker'
 import { Colors } from '../lib/colors'
-import { uploadFile, hasHistory } from '../lib/api'
+import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId } from '../lib/storage'
+import { showRewardedAsync, loadRewarded } from '../components/Ads'
 
 export default function IndexScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
+    // Preload Rewarded Ad when the screen starts
+    loadRewarded()
+    
     async function init() {
       // Devam eden iş var mı?
       const existingJob = await getJobId()
@@ -20,20 +25,23 @@ export default function IndexScreen() {
         router.replace('/loading')
         return
       }
-      // Geçmiş var mı?
-      try {
-        const has = await hasHistory()
-        if (has) {
-          router.replace('/history')
-          return
+      
+      // Kullanıcı açıkça "Yeni" diyerek geldiyse geçmiş kontrolünü atla
+      if (params.forceOpen !== '1') {
+        try {
+          const has = await hasHistory()
+          if (has) {
+            router.replace('/history')
+            return
+          }
+        } catch (e) {
+          // Backend erişilemezse landing göster
         }
-      } catch (e) {
-        // Backend erişilemezse landing göster
       }
       setLoading(false)
     }
     init()
-  }, [])
+  }, [params.forceOpen])
 
   const handlePickFile = async () => {
     try {
@@ -50,9 +58,17 @@ export default function IndexScreen() {
         return
       }
 
-      setUploading(true)
-      const data = await uploadFile(file.uri, file.name)
-
+      await sendFile(file.uri, file.name, file.file)
+      
+    } catch (err) {
+      handleApiError(err)
+    }
+  }
+  
+  const sendFile = async (uri, name, fileObj) => {
+    setUploading(true)
+    try {
+      const data = await uploadFile(uri, name, fileObj)
       if (data.success && data.job_id) {
         await setJobId(data.job_id)
         router.replace('/loading')
@@ -60,6 +76,40 @@ export default function IndexScreen() {
         throw new Error('İşlem kuyruğa alınamadı.')
       }
     } catch (err) {
+      handleApiError(err, uri, name, fileObj)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleApiError = (err, uri, name, fileObj) => {
+    if (err.message === 'LIMIT_REACHED') {
+      Alert.alert(
+        "Limit Doldu 🔒",
+        "Günlük ücretsiz analiz hakkınızı doldurdunuz. Kısa bir reklam izleyerek 1 hak daha kazanmak ister misiniz?",
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          { 
+            text: 'Reklam İzle', 
+            onPress: async () => {
+              try {
+                setUploading(true)
+                const completed = await showRewardedAsync()
+                if (completed) {
+                  await earnQuota()
+                  Alert.alert('Tebrikler!', 'Yeni bir analiz hakkı kazandınız.', [
+                    { text: 'Tekrar Dene', onPress: () => sendFile(uri, name, fileObj) }
+                  ])
+                }
+              } catch (e) {
+                Alert.alert('Hata', e.message)
+                setUploading(false)
+              }
+            } 
+          }
+        ]
+      )
+    } else {
       Alert.alert('Hata', err.message || 'Dosya yüklenemedi.')
       setUploading(false)
     }

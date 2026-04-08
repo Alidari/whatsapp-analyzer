@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback,
-  TouchableOpacity, Share,
+  TouchableOpacity, Share, Animated, ScrollView
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -9,6 +9,39 @@ import { Colors } from '../lib/colors'
 import { generateStorySlides } from '../lib/slides'
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
+
+function ExampleQuotes({ quotesList }) {
+  if (!quotesList || quotesList.length === 0) return null
+
+  // Just take the first dialogue for simplicity
+  const currentDialogue = Array.isArray(quotesList[0]) ? quotesList[0] : quotesList
+  if (!currentDialogue || currentDialogue.length === 0) return null
+
+  return (
+    <ScrollView 
+      style={{ width: '100%', maxHeight: 200, marginVertical: 12 }} 
+      contentContainerStyle={styles.quoteWrap}
+      showsVerticalScrollIndicator={true}
+    >
+      {currentDialogue.slice(-3).map((msg, idx) => {
+        const isFirstSender = msg.sender === currentDialogue[0].sender
+        return (
+          <View key={idx} style={[
+            styles.quoteBubble,
+            isFirstSender ? styles.quoteBubbleLeft : styles.quoteBubbleRight
+          ]}>
+            <Text style={styles.quoteSender}>
+              {msg.sender.split(' ')[0]}
+            </Text>
+            <Text style={styles.quoteMessage}>
+              "{msg.message}"
+            </Text>
+          </View>
+        )
+      })}
+    </ScrollView>
+  )
+}
 
 export default function StoriesScreen() {
   const router = useRouter()
@@ -26,6 +59,29 @@ export default function StoriesScreen() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isRevealed, setIsRevealed] = useState(false)
 
+  // ── Animasyon Değerleri ──
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(20)).current
+
+  // currentSlide veya isRevealed değiştiğinde animasyonu tetikle
+  useEffect(() => {
+    fadeAnim.setValue(0)
+    slideAnim.setValue(30) // Başlangıç pozisyonu (30px aşağıdan)
+    
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      friction: 8,
+      tension: 50,
+      useNativeDriver: true,
+    }).start()
+
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start()
+  }, [currentSlide, isRevealed])
+
   const goNext = useCallback(() => {
     if (!isRevealed) {
       setIsRevealed(true)
@@ -35,7 +91,6 @@ export default function StoriesScreen() {
       setCurrentSlide((p) => p + 1)
       setIsRevealed(false)
     } else {
-      // Navigate to dashboard
       router.replace({
         pathname: '/dashboard',
         params: { data: rawData },
@@ -118,8 +173,11 @@ export default function StoriesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Content */}
-        <View style={styles.content}>
+        {/* Content with Animation */}
+        <Animated.View style={[styles.content, { 
+          opacity: fadeAnim, 
+          transform: [{ translateY: slideAnim }] 
+        }]}>
           {!isRevealed ? (
             // QUESTION MODE
             <View style={styles.questionWrap}>
@@ -143,13 +201,15 @@ export default function StoriesScreen() {
               </Text>
               <Text style={styles.revealSubtitle}>{slide.subtitle}</Text>
 
+              <ExampleQuotes quotesList={slide.exampleQuote} />
+
               {/* Share Button */}
               <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
                 <Text style={styles.shareBtnText}>📤  Paylaş</Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </Animated.View>
 
         {/* Slide Counter */}
         <Text style={styles.counter}>
@@ -312,5 +372,44 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     fontSize: 12,
     textAlign: 'center',
+  },
+  quoteWrap: {
+    width: '100%',
+    marginVertical: 16,
+    paddingHorizontal: 8,
+  },
+  quoteBubble: {
+    maxWidth: '85%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  quoteBubbleLeft: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderTopLeftRadius: 4,
+  },
+  quoteBubbleRight: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderTopRightRadius: 4,
+  },
+  quoteSender: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+  },
+  quoteMessage: {
+    fontSize: 14,
+    color: 'white',
+    lineHeight: 20,
   },
 })

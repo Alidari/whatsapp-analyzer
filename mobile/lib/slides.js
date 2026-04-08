@@ -19,6 +19,7 @@ export function generateStorySlides(metrics) {
       title: `${g.total_messages.toLocaleString('tr-TR')} mesaj, ${g.date_range.days_span} gün.`,
       titleAccent: Colors.primary,
       subtitle: `${senders.join(' & ')} arasında toplam ${g.total_words.toLocaleString('tr-TR')} kelime yazıldı. En yoğun gününüz ${g.busiest_day.date} (${g.busiest_day.count} mesaj).`,
+      exampleQuote: g.busiest_day.dialogues,
     },
 
     // ── 2: Vibe Check ──
@@ -30,6 +31,8 @@ export function generateStorySlides(metrics) {
       title: `Sohbetin havası: ${m.vibe_check.mood_label_tr}`,
       titleAccent: Colors.tertiary,
       subtitle: `%${m.vibe_check.positive_pct} pozitif, %${m.vibe_check.negative_pct} negatif, %${m.vibe_check.neutral_pct} nötr.`,
+      exampleQuote: m.vibe_check.overall_mood === 'Romantic' ? m.vibe_check.highlighted_quotes?.romantic : 
+                    (m.vibe_check.overall_mood === 'Toxic' ? m.vibe_check.highlighted_quotes?.toxic : null),
     },
 
     // ── 3: Eğlence ──
@@ -41,6 +44,7 @@ export function generateStorySlides(metrics) {
       title: 'Gülmekten karnınıza ağrılar giren o anlara bakalım!',
       titleAccent: Colors.primary,
       subtitle: 'Yapay zekanın bulduğu "En Eğlenceli Sohbetler".',
+      exampleQuote: m.vibe_check.highlighted_quotes?.hilarious,
     },
 
     // ── 4: Streak ──
@@ -74,6 +78,7 @@ export function generateStorySlides(metrics) {
       title: `${m.word_quirks.question_king} tam bir FBI ajanı gibi her şeyi sorguluyor!`,
       titleAccent: Colors.primary,
       subtitle: 'Sohbet boyunca en çok soru soran kişi oldu. Her şeyin bir cevabı olmalı değil mi?',
+      exampleQuote: m.word_quirks?.fbi_dialogues,
     },
 
     // ── 7: Roman Yazarı ──
@@ -85,6 +90,7 @@ export function generateStorySlides(metrics) {
       title: `${m.message_style.novelist} destan yazıyor, ${m.message_style.telegraphist} "tm" diyor.`,
       titleAccent: Colors.primary,
       subtitle: `${m.message_style.novelist}: ort ${m.message_style.per_sender[m.message_style.novelist]?.avg_words || 0} kelime.`,
+      exampleQuote: m.message_style.highlighted_quote,
     },
 
     // ── 8: Emoji Evreni ──
@@ -118,6 +124,7 @@ export function generateStorySlides(metrics) {
       title: `Gerginlik skoru: ${m.argument_score.tension_index}/100`,
       titleAccent: m.argument_score.tension_index > 40 ? Colors.error : Colors.secondary,
       subtitle: `${m.argument_score.tension_label} • CAPS Kralı: ${m.argument_score.caps_lock_king}`,
+      exampleQuote: m.argument_score.highlighted_quote,
     },
 
     // ── 11: Favori Kelime ──
@@ -144,9 +151,17 @@ export function generateStorySlides(metrics) {
         ? 'Bu sohbette küfür yok! Tebrikler 👼'
         : `Küfür şampiyonu: ${m.profanity.profanity_champion}`,
       titleAccent: m.profanity.total_profanity === 0 ? Colors.primary : Colors.error,
-      subtitle: m.profanity.total_profanity === 0
-        ? 'Ne kadar kibar insanlarsınız! ✨'
-        : `Toplam ${m.profanity.total_profanity} küfür. ${m.profanity.profanity_density_label}`,
+      subtitle: (() => {
+        if (m.profanity.total_profanity === 0) {
+          return 'Ne kadar kibar insanlarsınız! ✨'
+        }
+        const entries = Object.entries(m.profanity.per_sender || {})
+        const details = entries.map(([s, d]) => {
+          const topWord = d.top_profanities?.[0]?.word || ''
+          return `${s}: ${d.profanity_count} küfür` + (topWord ? ` (Favorisi: "${topWord}")` : '')
+        }).join(' • ')
+        return `Toplam ${m.profanity.total_profanity} küfür. ${details}`
+      })(),
     }] : []),
 
     // ── 13: Buz Kırıcı ──

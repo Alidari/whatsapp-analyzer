@@ -14,6 +14,7 @@ import ExportGuide from './components/ExportGuide'
 import RelationshipWheel from './components/RelationshipWheel'
 import AnimatedBackground from './components/AnimatedBackground'
 import AnalysisHistory from './components/AnalysisHistory'
+import AdminPanel from './components/AdminPanel'
 
 // ──────────────────────────────────────────────
 //  Client ID — Anonim UUID yönetimi
@@ -34,9 +35,14 @@ function App() {
   const [error, setError] = useState(null)
 
   // ──────────────────────────────────────────────
-  //  Startup: Check if user has past analyses
+  //  Startup Check: History or Admin
   // ──────────────────────────────────────────────
   useEffect(() => {
+    if (window.location.pathname === '/admin') {
+      setActiveView('admin')
+      return
+    }
+
     const existingJob = localStorage.getItem('anatomi_job_id')
     if (existingJob) {
       // Resume an existing job
@@ -217,6 +223,16 @@ function App() {
         />
 
       <AnimatePresence mode="wait">
+        {activeView === 'admin' && (
+          <AdminPanel 
+            key="admin" 
+            onClose={() => {
+              window.history.replaceState(null, '', '/')
+              handleBackToLanding()
+            }} 
+          />
+        )}
+
         {activeView === 'loading' && (
           <LoadingOverlay key="loading" />
         )}

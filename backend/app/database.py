@@ -34,6 +34,16 @@ DB_PATH = DB_DIR / "anatomi.db"
 Base = declarative_base()
 
 
+class UserQuota(Base):
+    """Kullanıcı kota ve limit takibi."""
+    __tablename__ = "user_quotas"
+    client_id = Column(String(36), primary_key=True, index=True)
+    last_scan_date = Column(String(10), nullable=True) # YYYY-MM-DD
+    daily_scans_used = Column(Integer, default=0)
+    max_scans_today = Column(Integer, default=1)
+    lifetime_scans = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class Analysis(Base):
     """Tamamlanmış bir analiz kaydı."""
     __tablename__ = "analyses"
@@ -52,6 +62,7 @@ class Analysis(Base):
     analysis_time_seconds = Column(Integer, nullable=True)
     file_size_bytes = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_unlocked = Column(Integer, default=0) # 0 = Locked, 1 = Unlocked
 
 
 # Engine & Session Factory — lazily initialized
@@ -81,9 +92,17 @@ def _get_session() -> Session:
 
 
 def init_db():
-    """Tabloları oluşturur (startup'ta çağrılır)."""
+    """Tabloları oluşturur ve gerekli migrate'leri yapar (startup'ta çağrılır)."""
     engine = _get_engine()
     Base.metadata.create_all(bind=engine)
+    
+    # Simple migration for is_unlocked
+    with engine.begin() as conn:
+        try:
+            conn.execute("ALTER TABLE analyses ADD COLUMN is_unlocked INTEGER DEFAULT 0")
+        except Exception:
+            pass # Col already exists
+            
     print(f"✅ Veritabanı hazır: {DB_PATH}")
 
 
@@ -144,6 +163,129 @@ def compute_chat_hash(content: str) -> str:
 
 
 # ──────────────────────────────────────────────
+#  Kota YÖnetimi (Rate Limiting)
+# ──────────────────────────────────────────────
+
+def get_admin_stats() -> dict:
+    """Admin paneli için istatistikler ve son aktiviteler döner."""
+    session = _get_session()
+    try:
+        total_users = session.query(UserQuota).count()
+        total_analyses = session.query(Analysis).count()
+        total_unlocked = session.query(Analysis).filter(Analysis.is_unlocked == 1).count()
+        
+        # Today tracking
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        daily_active_users = session.query(UserQuota).filter(UserQuota.last_scan_date == today_str).count()
+        
+        # Lifetime usage from quotes
+        from sqlalchemy.sql import func
+        total_scans_used = session.query(func.sum(UserQuota.lifetime_scans)).scalar() or 0
+        
+        # Recent analyses (last 5)
+        recent_analyses_qs = session.query(Analysis).order_by(desc(Analysis.created_at)).limit(5).all()
+        recent_analyses = []
+        for a in recent_analyses_qs:
+            recent_analyses.append({
+                "chat_name": a.chat_name,
+                "created_at": a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
+                "total_messages": a.total_messages,
+                "is_unlocked": a.is_unlocked
+            })
+            
+        # Chart data (Last 7 days)
+        from datetime import timedelta
+        chart_data_dict = {}
+        for i in range(6, -1, -1):
+            d = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+            chart_data_dict[d] = 0
+            
+        all_analyses = session.query(Analysis.created_at).all()
+        for a in all_analyses:
+            if a.created_at:
+                d = a.created_at.strftime("%Y-%m-%d")
+                if d in chart_data_dict:
+                    chart_data_dict[d] += 1
+                    
+        chart_labels = list(chart_data_dict.keys())
+        chart_values = list(chart_data_dict.values())
+        
+        return {
+            "total_users": total_users,
+            "total_analyses": total_analyses,
+            "total_unlocked": total_unlocked,
+            "daily_active_users": daily_active_users,
+            "total_scans_used": total_scans_used,
+            "recent_analyses": recent_analyses,
+            "chart_labels": chart_labels,
+            "chart_values": chart_values
+        }
+    finally:
+        session.close()
+
+def _get_or_create_quota(session: Session, client_id: str) -> UserQuota:
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    quota = session.query(UserQuota).filter(UserQuota.client_id == client_id).first()
+    
+    if not quota:
+        quota = UserQuota(client_id=client_id, last_scan_date=today_str)
+        session.add(quota)
+    else:
+        if quota.last_scan_date != today_str:
+            quota.last_scan_date = today_str
+            quota.daily_scans_used = 0
+            quota.max_scans_today = 1 # Reset to default daily limit
+    
+    return quota
+
+def check_quota(client_id: str) -> bool:
+    """Kullanıcının bugünkü limiti dolmuş mu bakar."""
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        session.commit()
+        return quota.daily_scans_used < quota.max_scans_today
+    finally:
+        session.close()
+
+def use_quota(client_id: str):
+    """Bir analiz hakkı harcar."""
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        quota.daily_scans_used += 1
+        quota.lifetime_scans += 1
+        session.commit()
+    finally:
+        session.close()
+
+def earn_quota(client_id: str):
+    """Reklam izlenildiğinde hakkını arttırır."""
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        quota.max_scans_today += 1
+        session.commit()
+    finally:
+        session.close()
+
+def unlock_history(analysis_id: str, client_id: str) -> bool:
+    """Belirli bir eski analizin kilidini reklam izlenildiğinde kalıcı olarak açar."""
+    session = _get_session()
+    try:
+        record = session.query(Analysis).filter(Analysis.id == analysis_id, Analysis.client_id == client_id).first()
+        if not record:
+            return False
+        record.is_unlocked = 1
+        session.commit()
+        return True
+    except Exception:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+# ──────────────────────────────────────────────
 #  CRUD İşlemleri
 # ──────────────────────────────────────────────
 
@@ -186,12 +328,14 @@ def save_analysis(
             metrics_json=json.dumps(safe_metrics, ensure_ascii=False, default=str),
             analysis_time_seconds=int(analysis_time),
             file_size_bytes=file_size,
+            is_unlocked=0 # İlk başta kilitli, loading ekranında açılacak.
         )
 
         session.add(analysis)
         session.commit()
 
-        # Limit: kullanıcı başına en fazla MAX_ANALYSES_PER_USER kayıt
+        # Quota and cleanup limits
+        use_quota(client_id)
         _enforce_limit(session, client_id)
 
         return analysis.id
@@ -248,6 +392,7 @@ def get_history(client_id: str) -> list[dict]:
                 "overall_mood": r.overall_mood,
                 "mood_label": r.mood_label,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
+                "is_unlocked": bool(r.is_unlocked),
             }
             for r in records
         ]
@@ -271,6 +416,10 @@ def get_analysis_detail(analysis_id: str, client_id: str) -> Optional[dict]:
         if not record:
             return None
 
+        # Eğer kilitliyse detay verisini gönderme!
+        if not record.is_unlocked:
+            return {"error": "LOCKED", "id": record.id}
+
         return {
             "id": record.id,
             "chat_name": record.chat_name,
@@ -282,6 +431,7 @@ def get_analysis_detail(analysis_id: str, client_id: str) -> Optional[dict]:
             "mood_label": record.mood_label,
             "analysis_time_seconds": record.analysis_time_seconds,
             "created_at": record.created_at.isoformat() if record.created_at else None,
+            "is_unlocked": True,
             "metrics": json.loads(record.metrics_json),
             "parse_summary": {
                 "total_messages": record.total_messages,

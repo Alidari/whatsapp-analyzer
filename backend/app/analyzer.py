@@ -1212,10 +1212,20 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
         else:
             density_label = "Ağız sabunlanmalı 🧼"
 
-        top_profanities = [
-            {"word": w, "count": c}
-            for w, c in profanity_counter.most_common(5)
-        ]
+        top_profanities = []
+        for w, c in profanity_counter.most_common(5):
+            word_len = len(w)
+            censored = w
+            if word_len >= 4:
+                # Censor middle 2 letters
+                mid = word_len // 2
+                censored = w[:mid-1] + '**' + w[mid+1:]
+            elif word_len == 3:
+                censored = w[0] + '*' + w[2]
+            else:
+                censored = w[0] + '*' * (word_len - 1)
+            
+            top_profanities.append({"word": censored, "count": c})
 
         per_sender[sender] = {
             "profanity_count": profanity_count,

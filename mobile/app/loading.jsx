@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
-import { View, Text, StyleSheet, Animated } from 'react-native'
+import { Alert, View, Text, StyleSheet, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Colors } from '../lib/colors'
-import { checkJobStatus } from '../lib/api'
+import { checkJobStatus, unlockHistory } from '../lib/api'
 import { getJobId, clearJobId } from '../lib/storage'
+import { showRewardedAsync, loadRewarded } from '../components/Ads'
 
 const MESSAGES = [
   { text: 'Mesajlarınız okunuyor...', icon: '💬' },
@@ -22,14 +23,19 @@ export default function LoadingScreen() {
   const [msgIndex, setMsgIndex] = useState(0)
   const spinAnim = useRef(new Animated.Value(0)).current
   const pulseAnim = useRef(new Animated.Value(1)).current
+  const [waitingForAd, setWaitingForAd] = useState(false)
+
+  useEffect(() => {
+    loadRewarded()
+  }, [])
 
   // Rotating messages
   useEffect(() => {
     const interval = setInterval(() => {
-      setMsgIndex((prev) => (prev + 1) % MESSAGES.length)
+      if (!waitingForAd) setMsgIndex((prev) => (prev + 1) % MESSAGES.length)
     }, 2200)
     return () => clearInterval(interval)
-  }, [])
+  }, [waitingForAd])
 
   // Spin animation
   useEffect(() => {
@@ -59,23 +65,52 @@ export default function LoadingScreen() {
     const poll = async () => {
       const jobId = await getJobId()
       if (!jobId) {
-        router.replace('/')
+        if (!waitingForAd) router.replace('/')
         return
       }
 
       const interval = setInterval(async () => {
-        if (!active) return
+        if (!active || waitingForAd) return
         try {
           const data = await checkJobStatus(jobId)
 
           if (data.status === 'completed' && data.result) {
             clearInterval(interval)
             await clearJobId()
-            // Navigate to stories with data
-            router.replace({
-              pathname: '/stories',
-              params: { data: JSON.stringify(data.result) },
-            })
+            setWaitingForAd(true)
+            
+            // Show alert for Rewarded Ad
+            Alert.alert(
+              "Analiz Tamamlandı! 🎉",
+              "Sohbet hikayeniz ve Wrapped sonuçlarınız hazır. Özelleştirilmiş raporunuzu şimdi görüntüleyebilirsiniz.",
+              [
+                { 
+                  text: 'Daha Sonra Sakla', 
+                  style: 'cancel',
+                  onPress: () => router.replace('/history') 
+                },
+                { 
+                  text: 'Sonuçları Gör', 
+                  onPress: async () => {
+                    try {
+                      const completed = await showRewardedAsync()
+                      if (completed) {
+                        await unlockHistory(data.result.analysis_id)
+                        router.replace({
+                          pathname: '/stories',
+                          params: { data: JSON.stringify(data.result) },
+                        })
+                      } else {
+                        router.replace('/history')
+                      }
+                    } catch (e) {
+                      Alert.alert('Hata', e.message)
+                      router.replace('/history')
+                    }
+                  } 
+                }
+              ]
+            )
           } else if (data.status === 'error' || data.status === 'not_found') {
             clearInterval(interval)
             await clearJobId()
@@ -88,10 +123,11 @@ export default function LoadingScreen() {
 
       return () => clearInterval(interval)
     }
-    poll()
+    
+    if (!waitingForAd) poll()
 
     return () => { active = false }
-  }, [])
+  }, [waitingForAd])
 
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],

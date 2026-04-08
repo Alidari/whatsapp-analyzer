@@ -21,7 +21,7 @@ from typing import Dict
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from .parser import parse_whatsapp_chat, get_parse_summary
@@ -29,6 +29,7 @@ from .analyzer import run_full_analysis
 from .database import (
     init_db, save_analysis, get_history, get_analysis_detail,
     delete_analysis, rename_analysis, has_history, compute_chat_hash,
+    check_quota, use_quota, earn_quota, unlock_history, get_admin_stats
 )
 
 # ──────────────────────────────────────────────
@@ -63,15 +64,8 @@ async def startup_event():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -180,6 +174,9 @@ async def analyze_chat(
     """
     # ── Client ID ──
     client_id = request.headers.get("x-client-id", "").strip()
+    
+    if client_id and not check_quota(client_id):
+        raise HTTPException(status_code=403, detail="LIMIT_REACHED")
 
     # ── Dosya Validasyonu ──
     if not file.filename:
@@ -248,6 +245,75 @@ async def check_has_history(request: Request):
     if not client_id:
         return {"has_history": False}
     return {"has_history": has_history(client_id)}
+
+
+import os
+import json
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../data/admin_config.json")
+
+def get_admin_pass() -> str:
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                return json.load(f).get("admin_pass", "admin123")
+        except:
+            pass
+    return "admin123"
+
+def set_admin_pass(new_pass: str):
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump({"admin_pass": new_pass}, f)
+
+from fastapi import Form
+from fastapi.responses import RedirectResponse
+
+from fastapi import Header
+
+@app.post("/api/admin/login")
+async def admin_login(pw: str = Form(...)):
+    if pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Invalid password")
+    return {"success": True}
+
+@app.get("/api/admin/stats")
+async def admin_stats(pw: str = Header(None)):
+    if pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Invalid password")
+    return get_admin_stats()
+
+@app.post("/api/admin/change-password")
+async def admin_change_password(current_pw: str = Form(...), new_pw: str = Form(...)):
+    if current_pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Eski şifre hatalı.")
+    if len(new_pw) < 3:
+        raise HTTPException(status_code=400, detail="Yeni şifre çok kısa.")
+    set_admin_pass(new_pw)
+    return {"success": True}
+
+from fastapi.responses import FileResponse
+@app.get("/admin")
+async def admin_fallback():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "../../frontend/dist/index.html"))
+
+
+@app.post("/api/earn-quota")
+async def earn_quota_endpoint(request: Request):
+    """Kullanıcı reklam izledikten sonra 1 hak kazanır."""
+    client_id = _get_client_id(request)
+    earn_quota(client_id)
+    return {"success": True, "message": "1 Analiz hakkı eklendi."}
+
+
+@app.post("/api/unlock-history/{analysis_id}")
+async def unlock_history_endpoint(analysis_id: str, request: Request):
+    """Geçmişteki kilitli bir analizi reklam izlenince açar."""
+    client_id = _get_client_id(request)
+    success = unlock_history(analysis_id, client_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Analiz bulunamadı veya açılamadı.")
+    return {"success": True, "message": "Analiz açıldı."}
 
 
 @app.get("/api/history")
