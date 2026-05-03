@@ -19,10 +19,22 @@ import AdminPanel from './components/AdminPanel'
 // ──────────────────────────────────────────────
 //  Client ID — Anonim UUID yönetimi
 // ──────────────────────────────────────────────
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // HTTPS olmayan (secure context dışı) ortamlarda fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 function getClientId() {
   let id = localStorage.getItem('anatomi_client_id')
   if (!id) {
-    id = crypto.randomUUID()
+    id = generateUUID()
     localStorage.setItem('anatomi_client_id', id)
   }
   return id
