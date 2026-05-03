@@ -6,9 +6,8 @@ services:
       context: ./backend
     container_name: wa-backend
     restart: unless-stopped
-    # Mobil uygulamanın dışarıdan erişebilmesi için portu açıyoruz
-    ports:
-      - "8000:8000"
+    # Coolify üzerinden domain atayacağımız için portu siliyoruz
+    # (Coolify proxy'si kendi iç ağından 8000'e otomatik yönelecek)
     volumes:
       - ./backend/data:/app/data
 
