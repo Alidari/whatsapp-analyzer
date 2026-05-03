@@ -296,10 +296,13 @@ def parse_whatsapp_chat(content: str) -> pd.DataFrame:
 def get_parse_summary(df: pd.DataFrame) -> dict:
     """Parse sonuçlarının özetini döner (debugging ve loglama için)."""
     senders = df["sender"].unique().tolist()
+    text_df = df[~df["is_media"]]
     return {
         "total_messages": len(df),
         "senders": senders,
         "sender_count": len(senders),
+        "user_count": len(senders),
+        "total_words": int(text_df["word_count"].sum()) if not text_df.empty else 0,
         "date_range": {
             "start": df["datetime"].min().isoformat(),
             "end": df["datetime"].max().isoformat(),

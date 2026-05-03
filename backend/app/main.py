@@ -338,6 +338,62 @@ async def admin_change_password(request: Request, current_pw: str = Form(...), n
     set_admin_pass(new_pw)
     return {"success": True}
 
+TEST_CHATS_DIR = os.path.join(os.path.dirname(__file__), "../data/test_chats")
+
+@app.get("/api/admin/test-chats")
+async def admin_get_test_chats(request: Request, pw: str = Header(None)):
+    check_api_key(request)
+    if pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Invalid password")
+    
+    if not os.path.exists(TEST_CHATS_DIR):
+        return {"chats": []}
+    
+    chats = [f for f in os.listdir(TEST_CHATS_DIR) if f.endswith(".txt")]
+    return {"chats": chats}
+
+@app.post("/api/admin/analyze-test-chat/{filename}")
+async def admin_analyze_test_chat(filename: str, request: Request, pw: str = Header(None)):
+    check_api_key(request)
+    if pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Invalid password")
+    
+    filepath = os.path.join(TEST_CHATS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Test file not found")
+        
+    start_time = time.time()
+    try:
+        with open(filepath, "rb") as f:
+            content_bytes = f.read()
+            
+        try:
+            content = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                content = content_bytes.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                content = content_bytes.decode("latin-1")
+                
+        df = parse_whatsapp_chat(content)
+        results = run_full_analysis(df)
+        elapsed = round(time.time() - start_time, 2)
+        parse_summary = get_parse_summary(df)
+        
+        return {
+            "success": True,
+            "result": {
+                "success": True,
+                "analysis_id": f"test-{filename}",
+                "analysis_time_seconds": elapsed,
+                "parse_summary": parse_summary,
+                "metrics": results
+            }
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 from fastapi.responses import FileResponse
 @app.get("/admin")
 async def admin_fallback():

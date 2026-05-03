@@ -146,8 +146,8 @@ def analyze_vibe_check(df: pd.DataFrame) -> dict:
     pipeline_api = get_nlp_pipeline()
 
     if pipeline_api:
-        # Gerçek Yapay Zeka (BERT) Kullanımı - 500 Mesajlık Örneklem
-        sample_size = min(len(text_df), 500)
+        # Gerçek Yapay Zeka (BERT) Kullanımı - 2000 Mesajlık Örneklem
+        sample_size = min(len(text_df), 2000)
         # Senders'a göre orantılı sample alalım
         sample_df = text_df.groupby("sender", group_keys=False).apply(
             lambda x: x.sample(n=min(len(x), sample_size // len(senders)), random_state=42)
@@ -314,6 +314,62 @@ def analyze_vibe_check(df: pd.DataFrame) -> dict:
     }
 
 
+def _is_aggressive_caps(message: str) -> bool:
+    """
+    CAPS LOCK tespitini bağlamsal olarak yapar.
+    Sadece büyük harf olması yeterli değil — negatif bağlamda olmalı.
+    
+    Hariç tutulanlar:
+    - Sevgi / romantik kelime içeren CAPS ("AŞKIM", "SEVİYORUM")
+    - Kısa sevinç çığlığı ("EVET!", "HARIKA", "OF YAW")
+    - Rastgele klavye dövmesi ("HDGFSDGF", "ASDFGH")
+    - Emoji ağırlıklı mesajlar
+    """
+    m = message.strip()
+    if len(m) < 5 or _count_caps_ratio(m) <= 0.7:
+        return False
+
+    m_lower = m.lower()
+
+    # 1. Romantik / pozitif kelime içeriyorsa CAPS = coşku, gerginlik değil
+    ROMANTIC_CAPS_WORDS = {
+        "aşkım", "aşkımm", "aşkmm", "seviyorum", "canım", "güzelim",
+        "tatlım", "harikasın", "mükemmel", "süper", "harika", "evet aşk",
+        "özledim", "sarıl", "öp", "sevgilim", "birtanem", "hayatım",
+        "güneşim", "bebeğim", "prensesim", "neden soruyorsun", "tabiki",
+        "tabii ki", "evet", "tamam", "anlıyorum", "biliyorum",
+    }
+    for word in ROMANTIC_CAPS_WORDS:
+        if word in m_lower:
+            return False
+
+    # 2. Rastgele klavye dövmesi — vokal/konsonan oranı çok bozuksa gerçek kelime değil
+    vowels = sum(1 for c in m_lower if c in "aeıioöuüaeiou")
+    alpha = sum(1 for c in m_lower if c.isalpha())
+    if alpha > 3 and vowels / max(alpha, 1) < 0.15:
+        # Çok az sesli harf → rastgele klavye dövmesi ("HDGFSDG")
+        return False
+
+    # 3. Mesaj sadece ünlem / emoji / kısa sevinç ifadesiyse
+    stripped = re.sub(r"[!?.\s]", "", m_lower)
+    if len(stripped) <= 4:
+        return False
+
+    # 4. Negatif sinyal varsa gerginlik kabul et
+    NEGATIVE_CAPS_SIGNALS = [
+        "yapma", "bırak", "dur", "yeter", "saçma", "kapat", "git",
+        "neden", "niye", "nasıl ya", "olmaz", "aptal", "sinir",
+        "kızıyor", "bıktım", "artık", "defol", "hayır", "inanmıyorum",
+        "yalan", "haksız", "haksızlık", "sorun", "problem", "kötü",
+    ]
+    has_negative = any(neg in m_lower for neg in NEGATIVE_CAPS_SIGNALS)
+
+    # 5. Çok fazla ünlem/soru işareti varsa gergin olabilir
+    has_aggressive_punct = m.count("!") >= 2 or (m.count("?") >= 2 and not any(r in m_lower for r in ["nasılsın", "naptın", "napıyorsun"]))
+
+    return has_negative or has_aggressive_punct
+
+
 def analyze_argument_score(df: pd.DataFrame) -> dict:
     """
     Tartışma Skoru — Gerginlik endeksi.
@@ -336,10 +392,9 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
         s_df = text_df[text_df["sender"] == sender]
         total = len(s_df) or 1
 
-        # CAPS LOCK mesaj sayısı (>%70 büyük harf, en az 5 karakter)
-        caps_msgs = s_df["message"].apply(
-            lambda m: _count_caps_ratio(m) > 0.7 and len(m) > 5
-        ).sum()
+        # CAPS LOCK mesaj sayısı — bağlamsal, akıllı tespit
+        # "AŞKIM", "EVET AŞKMM", klavye dövmesi gibi yanlış pozitifleri eliyor
+        caps_msgs = s_df["message"].apply(_is_aggressive_caps).sum()
 
         # Çoklu ünlem/soru işareti
         excl_msgs = s_df["message"].apply(
@@ -395,7 +450,10 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
     # Highlighted Quote for argument
     highlighted_quote = []
     if caps_lock_king != "Yok":
-        loud_msgs = text_df[(text_df["sender"] == caps_lock_king) & (text_df["message"].str.isupper()) & (text_df["message"].str.len() > 10)]
+        loud_msgs = text_df[
+            (text_df["sender"] == caps_lock_king) & 
+            (text_df["message"].apply(_is_aggressive_caps))
+        ]
         
         # Get up to 3 loud messages
         top_loud_indices = loud_msgs.index[:3]
@@ -1180,6 +1238,13 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
     per_sender = {}
     total_profanity = 0
 
+    FALSE_POSITIVES = {
+        "sıkıntı", "sikinti", "sıkıntılı", "sikintili", "sıkıldım", "sikildim", 
+        "sıkma", "sikma", "sıkıcı", "sikici", "amin", "sık", "sıkı", "sıkıca", 
+        "siki", "sikica", "sıkıntıdan", "sikintidan", "sıkılır", "sikilir", 
+        "sıkıldı", "sikildi"
+    }
+
     for sender in senders:
         s_df = text_df[text_df["sender"] == sender]
         total_words = int(s_df["word_count"].sum()) or 1
@@ -1192,8 +1257,20 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
             matches = p.findall(all_text)
             if matches:
                 for match in matches:
+                    m_lower = match.lower()
+                    if m_lower in FALSE_POSITIVES:
+                        continue
+                    if m_lower.startswith(("sıkın", "sikin", "sıkıl", "sikil", "sıkıc", "sikic", "sıkıy", "sikiy", "sıkm", "sikm", "sıkışt", "sikist", "sıkça", "sikca", "sıkı", "siki")):
+                        # Eğer direkt "sik" veya "sikiş" vs ise küfür olabilir, ama "siki" ile başlayan masum kelimeler çok az.
+                        # "sik" -> 3 harf. "siki" -> 4 harf. "sikinti" -> 7 harf.
+                        # We allow exact "sik" to pass since startswith("siki") needs at least 4 letters.
+                        if m_lower in ["sik", "sikiş", "sikişmek", "sikmek", "sikik"]:
+                            pass # let it count
+                        else:
+                            continue
+                    
                     profanity_count += 1
-                    profanity_counter[match.lower()] += 1
+                    profanity_counter[m_lower] += 1
 
         total_profanity += profanity_count
 
