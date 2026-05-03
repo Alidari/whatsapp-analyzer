@@ -54,7 +54,10 @@ function App() {
     async function checkHistory() {
       try {
         const resp = await fetch('/api/has-history', {
-          headers: { 'X-Client-ID': clientId },
+          headers: { 
+            'X-Client-ID': clientId,
+            'X-API-Key': 'AnatomiSecureKey2026!'
+          },
         })
         if (resp.ok) {
           const data = await resp.json()
@@ -76,7 +79,9 @@ function App() {
   // ──────────────────────────────────────────────
   const checkJobStatus = useCallback(async (jobId) => {
     try {
-      const resp = await fetch(`/api/status/${jobId}`)
+      const resp = await fetch(`/api/status/${jobId}`, {
+        headers: { 'X-API-Key': 'AnatomiSecureKey2026!' }
+      })
       if (!resp.ok) {
         if (resp.status === 404) {
           localStorage.removeItem('anatomi_job_id')
@@ -136,7 +141,10 @@ function App() {
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'X-Client-ID': clientId },
+        headers: { 
+          'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
         body: formData,
       })
 

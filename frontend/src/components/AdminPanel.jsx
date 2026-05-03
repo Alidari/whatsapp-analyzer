@@ -15,7 +15,10 @@ export default function AdminPanel({ onClose }) {
   const fetchStats = async (pw) => {
     try {
       const resp = await fetch('/api/admin/stats', {
-        headers: { 'pw': pw }
+        headers: { 
+          'pw': pw,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        }
       })
       if (resp.ok) {
         setStats(await resp.json())
@@ -59,6 +62,9 @@ export default function AdminPanel({ onClose }) {
 
       const resp = await fetch('/api/admin/change-password', {
         method: 'POST',
+        headers: {
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
         body: formData
       })
       if (resp.ok) {

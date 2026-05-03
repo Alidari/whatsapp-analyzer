@@ -53,7 +53,10 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
   const fetchHistory = useCallback(async () => {
     try {
       const resp = await fetch('/api/history', {
-        headers: { 'X-Client-ID': clientId },
+        headers: { 
+          'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
       })
       if (resp.ok) {
         const data = await resp.json()
@@ -74,7 +77,10 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
     try {
       const resp = await fetch(`/api/history/${id}`, {
         method: 'DELETE',
-        headers: { 'X-Client-ID': clientId },
+        headers: { 
+          'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
       })
       if (resp.ok) {
         setAnalyses(prev => prev.filter(a => a.id !== id))
@@ -93,6 +99,7 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
         method: 'PATCH',
         headers: {
           'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: editName.trim() }),
@@ -114,7 +121,10 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
     setLoadingDetail(id)
     try {
       const resp = await fetch(`/api/history/${id}`, {
-        headers: { 'X-Client-ID': clientId },
+        headers: { 
+          'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
       })
       if (resp.ok) {
         const data = await resp.json()

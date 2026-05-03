@@ -8,3 +8,4 @@ emoji==2.12.1
 python-dateutil==2.9.0
 sqlalchemy==2.0.35
 aiosqlite==0.20.0
+slowapi==0.1.9

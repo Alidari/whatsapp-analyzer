@@ -12,13 +12,14 @@ import { getClientId } from './storage'
 // iOS simülatör için: localhost
 // Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
 const BASE_URL = __DEV__
-  ? 'http://192.168.1.40:8000'
+  ? 'http://192.168.1.35:8000'
   : 'https://anatomi.app'
 
 async function headers() {
   const clientId = await getClientId()
   return {
     'X-Client-ID': clientId,
+    'X-API-Key': 'AnatomiSecureKey2026!',
   }
 }
 
@@ -44,7 +45,10 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
     const resp = await fetch(`${BASE_URL}/api/analyze`, {
       method: 'POST',
       body: formData,
-      headers: { 'X-Client-ID': clientId },
+      headers: {
+        'X-Client-ID': clientId,
+        'X-API-Key': 'AnatomiSecureKey2026!'
+      },
     })
 
     if (!resp.ok) {
@@ -70,7 +74,10 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
       fieldName: 'file',
       httpMethod: 'POST',
       uploadType: FileSystem.FileSystemUploadType?.MULTIPART ?? 1,
-      headers: { 'X-Client-ID': clientId },
+      headers: {
+        'X-Client-ID': clientId,
+        'X-API-Key': 'AnatomiSecureKey2026!'
+      },
       mimeType: mimeType,
       parameters: {},
     }
@@ -90,7 +97,9 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
 // ──────────────────────────────────────────────
 
 export async function checkJobStatus(jobId) {
-  const resp = await fetch(`${BASE_URL}/api/status/${jobId}`)
+  const resp = await fetch(`${BASE_URL}/api/status/${jobId}`, {
+    headers: { 'X-API-Key': 'AnatomiSecureKey2026!' }
+  })
   if (!resp.ok) {
     if (resp.status === 404) return { status: 'not_found' }
     throw new Error('Durum kontrolü başarısız.')

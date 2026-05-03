@@ -23,6 +23,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .parser import parse_whatsapp_chat, get_parse_summary
 from .analyzer import run_full_analysis
@@ -50,6 +53,10 @@ app = FastAPI(
     version="2.0.0",
 )
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # ──────────────────────────────────────────────
 #  Startup Event — DB tablolarını oluştur
 # ──────────────────────────────────────────────
@@ -64,8 +71,14 @@ async def startup_event():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "https://anatomi.app",
+        "https://www.anatomi.app",
+        "http://localhost:5173",
+        "http://localhost:80",
+        "http://localhost"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -75,8 +88,16 @@ app.add_middleware(
 #  Helper: Client ID Extraction
 # ──────────────────────────────────────────────
 
+API_KEY_SECRET = "AnatomiSecureKey2026!"
+
+def check_api_key(request: Request):
+    api_key = request.headers.get("x-api-key", "").strip()
+    if api_key != API_KEY_SECRET:
+        raise HTTPException(status_code=401, detail="Geçersiz veya eksik API Anahtarı.")
+
 def _get_client_id(request: Request) -> str:
     """X-Client-ID header'ından client_id alır."""
+    check_api_key(request)
     client_id = request.headers.get("x-client-id", "").strip()
     if not client_id or len(client_id) > 64:
         raise HTTPException(status_code=400, detail="Geçerli bir X-Client-ID header'ı gerekli.")
@@ -160,6 +181,7 @@ async def health_check():
 
 
 @app.post("/api/analyze")
+@limiter.limit("5/minute")
 async def analyze_chat(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -246,8 +268,9 @@ async def analyze_chat(
 
 
 @app.get("/api/status/{job_id}")
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str, request: Request):
     """Belirli bir job id'nin durumunu ve eğer tamamlandıysa sonucunu döner."""
+    check_api_key(request)
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Girdiğiniz işlem Kimliği (Job ID) bulunamadı veya süresi dolmuş.")
         
@@ -292,19 +315,22 @@ from fastapi.responses import RedirectResponse
 from fastapi import Header
 
 @app.post("/api/admin/login")
-async def admin_login(pw: str = Form(...)):
+async def admin_login(request: Request, pw: str = Form(...)):
+    check_api_key(request)
     if pw != get_admin_pass():
         raise HTTPException(status_code=403, detail="Invalid password")
     return {"success": True}
 
 @app.get("/api/admin/stats")
-async def admin_stats(pw: str = Header(None)):
+async def admin_stats(request: Request, pw: str = Header(None)):
+    check_api_key(request)
     if pw != get_admin_pass():
         raise HTTPException(status_code=403, detail="Invalid password")
     return get_admin_stats()
 
 @app.post("/api/admin/change-password")
-async def admin_change_password(current_pw: str = Form(...), new_pw: str = Form(...)):
+async def admin_change_password(request: Request, current_pw: str = Form(...), new_pw: str = Form(...)):
+    check_api_key(request)
     if current_pw != get_admin_pass():
         raise HTTPException(status_code=403, detail="Eski şifre hatalı.")
     if len(new_pw) < 3:
