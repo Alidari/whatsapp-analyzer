@@ -182,10 +182,16 @@ async def analyze_chat(
     if not file.filename:
         raise HTTPException(status_code=400, detail="Dosya adı bulunamadı.")
 
-    if not file.filename.endswith(".txt") and not file.filename.endswith(".zip"):
+    filename_lower = file.filename.lower()
+    content_type = (file.content_type or "").lower()
+    
+    is_text = filename_lower.endswith(".txt") or "text/plain" in content_type
+    is_zip = filename_lower.endswith(".zip") or "zip" in content_type or "archive" in content_type
+
+    if not is_text and not is_zip:
         raise HTTPException(
             status_code=400,
-            detail="Yalnızca .txt dosyaları kabul edilir. WhatsApp'tan 'Sohbeti dışa aktar' seçeneğini kullanın.",
+            detail="Yalnızca .txt veya .zip formatındaki dosyalar kabul edilir. Lütfen geçerli bir sohbet belgesi yükleyin.",
         )
 
     # Dosya boyutu kontrolü (50 MB)
@@ -196,6 +202,20 @@ async def analyze_chat(
             status_code=413,
             detail="Dosya çok büyük (>50 MB). Lütfen daha küçük bir sohbet dosyası deneyin.",
         )
+
+    # Eger ZIP ise icinden .txt dosyasini bul ve disari cikar
+    if is_zip:
+        import zipfile
+        import io
+        try:
+            with zipfile.ZipFile(io.BytesIO(content_bytes)) as z:
+                # Ilk .txt dosyasini bul
+                txt_filename = next((name for name in z.namelist() if name.endswith(".txt")), None)
+                if not txt_filename:
+                    raise HTTPException(status_code=400, detail="ZIP dosyasının içinde .txt uzantılı sohbet metni bulunamadı.")
+                content_bytes = z.read(txt_filename)
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Bozuk bir ZIP dosyası yüklediniz.")
 
     # ── İçerik Decode ──
     try:

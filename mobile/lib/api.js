@@ -4,7 +4,7 @@
  * Geliştirme: bilgisayarın LAN IP'si
  * Üretim: gerçek domain
  */
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { getClientId } from './storage'
 
 // ── Geliştirme sırasında bilgisayarının LAN IP'sini yaz ──
@@ -28,7 +28,7 @@ async function headers() {
 
 import { Platform } from 'react-native'
 
-export async function uploadFile(fileUri, fileName, fileObj = null) {
+export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMimeType = null) {
   const clientId = await getClientId()
 
   if (Platform.OS === 'web') {
@@ -54,6 +54,14 @@ export async function uploadFile(fileUri, fileName, fileObj = null) {
     return resp.json()
   }
 
+  // Drive'dan gelen dosyalarda uzantı olmayabilir, MIME tipini elle belirliyoruz
+  const nameLower = (fileName || '').toLowerCase()
+  const mimeType = resolvedMimeType || (nameLower.endsWith('.zip') ? 'application/zip' : 'text/plain')
+  // Dosya adının uzantısı yoksa backend'in doğru parse etmesi için ekleyelim
+  const safeFileName = fileName
+    ? fileName
+    : mimeType === 'application/zip' ? 'chat.zip' : 'chat.txt'
+
   // Native upload
   const result = await FileSystem.uploadAsync(
     `${BASE_URL}/api/analyze`,
@@ -61,13 +69,15 @@ export async function uploadFile(fileUri, fileName, fileObj = null) {
     {
       fieldName: 'file',
       httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      uploadType: FileSystem.FileSystemUploadType?.MULTIPART ?? 1,
       headers: { 'X-Client-ID': clientId },
+      mimeType: mimeType,
       parameters: {},
     }
   )
 
   if (result.status !== 202) {
+    console.error('SERVER RESPONDED WITH ERROR: ', result.status, result.body)
     const err = JSON.parse(result.body || '{}')
     throw new Error(err.detail || `Sunucu hatası (${result.status})`)
   }

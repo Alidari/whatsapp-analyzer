@@ -35,10 +35,17 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "androidAppId": "ca-app-pub-1645648125009801~4364181219",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fc720731-13a1-4b23-b498-938587705665"
+      }
+    },
+    "owner": "aliddari"
   }
 }

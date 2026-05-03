@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as DocumentPicker from 'expo-document-picker'
 import { Colors } from '../lib/colors'
 import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId } from '../lib/storage'
-import { showRewardedAsync, loadRewarded } from '../components/Ads'
+import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
 
 export default function IndexScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
+  const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [isPicking, setIsPicking] = useState(false)
 
   useEffect(() => {
     // Preload Rewarded Ad when the screen starts
@@ -44,31 +47,45 @@ export default function IndexScreen() {
   }, [params.forceOpen])
 
   const handlePickFile = async () => {
+    if (isPicking || uploading) return
+    setIsPicking(true)
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'text/plain',
+        type: '*/*',
         copyToCacheDirectory: true,
       })
 
       if (result.canceled) return
 
       const file = result.assets[0]
-      if (!file.name.endsWith('.txt')) {
-        Alert.alert('Hata', 'Yalnızca .txt dosyaları kabul edilir.')
+      const fileName = (file.name || '').toLowerCase()
+      const mimeType = (file.mimeType || '').toLowerCase()
+      
+      const isText = fileName.endsWith('.txt') || mimeType.includes('text/plain')
+      const isZip = fileName.endsWith('.zip') || mimeType.includes('zip') || mimeType.includes('archive')
+
+      if (!isText && !isZip) {
+        Alert.alert('Hata', 'Yalnızca .txt veya .zip dosyaları kabul edilir.')
         return
       }
 
-      await sendFile(file.uri, file.name, file.file)
+      // Drive'dan gelen dosyalarda mimeType yoksa uzantıdan belirle
+      const resolvedMime = file.mimeType || (isZip ? 'application/zip' : 'text/plain')
+      await sendFile(file.uri, file.name, file.file, resolvedMime)
       
     } catch (err) {
+      console.error('File Picker Error: ', err)
       handleApiError(err)
+    } finally {
+      setIsPicking(false)
     }
+
   }
   
-  const sendFile = async (uri, name, fileObj) => {
+  const sendFile = async (uri, name, fileObj, mimeType) => {
     setUploading(true)
     try {
-      const data = await uploadFile(uri, name, fileObj)
+      const data = await uploadFile(uri, name, fileObj, mimeType)
       if (data.success && data.job_id) {
         await setJobId(data.job_id)
         router.replace('/loading')
@@ -76,6 +93,7 @@ export default function IndexScreen() {
         throw new Error('İşlem kuyruğa alınamadı.')
       }
     } catch (err) {
+      console.error('API Send Error: ', err)
       handleApiError(err, uri, name, fileObj)
     } finally {
       setUploading(false)
@@ -110,6 +128,7 @@ export default function IndexScreen() {
         ]
       )
     } else {
+      console.log('Displaying Alert for Error: ', err.message)
       Alert.alert('Hata', err.message || 'Dosya yüklenemedi.')
       setUploading(false)
     }
@@ -142,7 +161,7 @@ export default function IndexScreen() {
       {/* Upload Button */}
       <TouchableOpacity
         onPress={handlePickFile}
-        disabled={uploading}
+        disabled={uploading || isPicking}
         activeOpacity={0.85}
       >
         <LinearGradient
@@ -175,6 +194,11 @@ export default function IndexScreen() {
       >
         <Text style={styles.historyLinkText}>Geçmiş Analizler →</Text>
       </TouchableOpacity>
+
+      {/* Bottom Banner */}
+      <View style={[styles.bannerContainer, { paddingBottom: insets.bottom }]}>
+        <AppBannerAd />
+      </View>
     </View>
   )
 }
@@ -258,5 +282,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.secondary,
     fontWeight: '600',
+  },
+  bannerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    alignItems: 'center',
   },
 })

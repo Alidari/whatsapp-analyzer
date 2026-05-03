@@ -3,9 +3,9 @@ import { Platform, View, Text } from 'react-native'
 import { BannerAd, BannerAdSize, TestIds, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads'
 
 // Use test IDs for development
-const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy'
-const interstitialId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy'
-const rewardedId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy'
+const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-1645648125009801/1821778350'
+const interstitialId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy' // Not used yet based on user requirements
+const rewardedId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-1645648125009801/4265989191'
 
 // ── BANNER AD ──
 export function AppBannerAd() {

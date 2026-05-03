@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv
+Pipfile
+Pipfile.lock
+
+# Test and development files
+.pytest_cache/
+test_*.py
+test_chat.txt
+
+# DB and local data (optional depending on if you want a fresh DB in prod)
+# We don't ignore data/ folder entirely, but maybe ignore sqlite files if you don't want them overwritten
+# data/*.sqlite3
+
+# Git and OS specific files
+.git/
+.gitignore
+.DS_Store
