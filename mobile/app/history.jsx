@@ -5,8 +5,11 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../lib/colors'
-import { getHistory, getHistoryDetail, deleteHistoryItem } from '../lib/api'
+import { 
+  getHistory, getHistoryDetail, deleteHistoryItem, unlockHistory 
+} from '../lib/api'
 import HistoryCard from '../components/HistoryCard'
 
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
@@ -52,12 +55,9 @@ export default function HistoryScreen() {
                 setLoadingId(id)
                 const completed = await showRewardedAsync()
                 if (completed) {
-                  // but we already have an api function `unlockHistory`! Let's import it.
-                  import('../lib/api').then(async ({ unlockHistory }) => {
-                    await unlockHistory(id)
-                    // Then load Dashboard
-                    loadDashboard(id)
-                  })
+                  await unlockHistory(id)
+                  // Then load Dashboard
+                  loadDashboard(id)
                 }
               } catch (e) {
                 Alert.alert('Tamamlanamadı', e.message)
@@ -79,9 +79,10 @@ export default function HistoryScreen() {
     setLoadingId(id)
     try {
       const data = await getHistoryDetail(id)
+      // data.result ile geçiyoruz çünkü loading.jsx de öyle yapıyor, Dashboard buna göre bekliyor
       router.push({
         pathname: '/dashboard',
-        params: { data: JSON.stringify(data) },
+        params: { data: JSON.stringify(data.result) },
       })
     } catch (err) {
       Alert.alert('Hata', err.message)
@@ -145,7 +146,12 @@ export default function HistoryScreen() {
 
       {analyses.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>📊</Text>
+          <Ionicons 
+            name="chatbubbles-outline" 
+            size={80} 
+            color={Colors.primary + '20'} 
+            style={styles.emptyIcon} 
+          />
           <Text style={styles.emptyTitle}>Henüz analiz yok</Text>
           <Text style={styles.emptySubtitle}>
             İlk WhatsApp sohbet dosyanı yükleyerek başla!
@@ -251,8 +257,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyIcon: {
-    fontSize: 56,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 20,

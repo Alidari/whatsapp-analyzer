@@ -1,4 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native'
+import { useState, useRef } from 'react'
+import { Ionicons } from '@expo/vector-icons'
+import ViewShot from 'react-native-view-shot'
+import * as Sharing from 'expo-sharing'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { PieChart, BarChart } from 'react-native-chart-kit'
@@ -26,6 +30,8 @@ const chartConfig = {
 export default function DashboardScreen() {
   const router = useRouter()
   const { data: rawData } = useLocalSearchParams()
+  const [isSharing, setIsSharing] = useState(false)
+  const viewShotRef = useRef(null)
 
   let analysisData
   try {
@@ -35,9 +41,32 @@ export default function DashboardScreen() {
     return null
   }
 
-  const m = analysisData.metrics || analysisData
+  const m = analysisData?.metrics || analysisData
+  
+  if (!m || !m.general) {
+    console.log('Dashboard: Missing metrics or general data')
+    return null
+  }
+
   const g = m.general
-  const senders = g.senders
+  const senders = g.senders || []
+
+  const handleShare = async () => {
+    if (isSharing) return
+    setIsSharing(true)
+    try {
+      const uri = await viewShotRef.current.capture()
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Dashboard Paylaş',
+        UTI: 'public.png'
+      })
+    } catch (err) {
+      console.error('Share error:', err)
+    } finally {
+      setIsSharing(false)
+    }
+  }
 
   const goToStories = () => {
     router.push({
@@ -80,15 +109,28 @@ export default function DashboardScreen() {
             {senders.join(' & ')} • {g.date_range.days_span} gün
           </Text>
         </View>
-        <TouchableOpacity onPress={goToStories} activeOpacity={0.85}>
-          <LinearGradient
-            colors={[Colors.primary, Colors.primaryContainer]}
-            style={styles.storyBtn}
-          >
-            <Text style={styles.storyBtnText}>📖 Hikayeler</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
+            <View style={styles.shareIconBtn}>
+              {isSharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-social-outline" size={20} color="#fff" />}
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={goToStories} activeOpacity={0.85}>
+            <LinearGradient
+              colors={[Colors.primary, Colors.primaryContainer]}
+              style={styles.storyBtn}
+            >
+              <Text style={styles.storyBtnText}>📖 Hikayeler</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
+        <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+          {/* Hero stats and cards will be inside this */}
 
       {/* ═══ HERO STATS ═══ */}
       <View style={styles.heroGrid}>
@@ -293,6 +335,9 @@ export default function DashboardScreen() {
         </MetricCard>
       )}
 
+    </View>
+    </ViewShot>
+
       {/* Banner Reklam */}
       <AppBannerAd />
 
@@ -478,5 +523,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     padding: 8,
+  },
+  shareIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
 })

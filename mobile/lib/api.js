@@ -12,8 +12,8 @@ import { getClientId } from './storage'
 // iOS simülatör için: localhost
 // Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
 const BASE_URL = __DEV__
-  ? 'http://192.168.1.35:8000'
-  : 'https://anatomi.app'
+  ? 'http://di4lk8fj11h9v512miuiq5ye.213.199.57.168.sslip.io'
+  : 'http://di4lk8fj11h9v512miuiq5ye.213.199.57.168.sslip.io'
 
 async function headers() {
   const clientId = await getClientId()
@@ -22,7 +22,7 @@ async function headers() {
     'X-API-Key': 'AnatomiSecureKey2026!',
   }
 }
- 
+
 // ──────────────────────────────────────────────
 //  Dosya Yükleme
 // ──────────────────────────────────────────────

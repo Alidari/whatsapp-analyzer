@@ -1,45 +1,89 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback,
-  TouchableOpacity, Share, Animated, ScrollView
+  TouchableOpacity, Share, Animated, ScrollView, Modal, ActivityIndicator
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from '@expo/vector-icons'
+import ViewShot from 'react-native-view-shot'
+import * as Sharing from 'expo-sharing'
 import { Colors } from '../lib/colors'
 import { generateStorySlides } from '../lib/slides'
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
 
 function ExampleQuotes({ quotesList }) {
+  const [modalVisible, setModalVisible] = useState(false)
+  
   if (!quotesList || quotesList.length === 0) return null
 
-  // Just take the first dialogue for simplicity
-  const currentDialogue = Array.isArray(quotesList[0]) ? quotesList[0] : quotesList
-  if (!currentDialogue || currentDialogue.length === 0) return null
-
+  // Birden fazla diyalog varsa hepsini, yoksa tekini al
+  const dialogues = Array.isArray(quotesList[0]) ? quotesList : [quotesList]
+  
   return (
-    <ScrollView 
-      style={{ width: '100%', maxHeight: 200, marginVertical: 12 }} 
-      contentContainerStyle={styles.quoteWrap}
-      showsVerticalScrollIndicator={true}
-    >
-      {currentDialogue.slice(-3).map((msg, idx) => {
-        const isFirstSender = msg.sender === currentDialogue[0].sender
-        return (
-          <View key={idx} style={[
-            styles.quoteBubble,
-            isFirstSender ? styles.quoteBubbleLeft : styles.quoteBubbleRight
-          ]}>
-            <Text style={styles.quoteSender}>
-              {msg.sender.split(' ')[0]}
-            </Text>
-            <Text style={styles.quoteMessage}>
-              "{msg.message}"
-            </Text>
+    <>
+      <TouchableOpacity 
+        style={styles.viewSampleBtn} 
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="eye-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.viewSampleBtnText}>Örnek Sohbeti Gör</Text>
+      </TouchableOpacity>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Sohbet Örneği</Text>
+                <Text style={styles.modalSubtitle}>Yapay zekanın seçtiği anlar</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {dialogues.map((dialogue, dIdx) => (
+                <View key={dIdx} style={styles.dialogueGroup}>
+                  {dIdx > 0 && <View style={styles.dialogueDivider} />}
+                  {dialogue.map((msg, idx) => {
+                    const isFirstSender = msg.sender === dialogue[0].sender
+                    return (
+                      <View key={idx} style={[
+                        styles.quoteBubble,
+                        isFirstSender ? styles.quoteBubbleLeft : styles.quoteBubbleRight
+                      ]}>
+                        <Text style={styles.quoteSender}>
+                          {msg.sender}
+                        </Text>
+                        <Text style={styles.quoteMessage}>
+                          {msg.message}
+                        </Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              ))}
+            </ScrollView>
           </View>
-        )
-      })}
-    </ScrollView>
+        </View>
+      </Modal>
+    </>
   )
 }
 
@@ -55,9 +99,16 @@ export default function StoriesScreen() {
     return null
   }
 
-  const slides = generateStorySlides(analysisData.metrics)
+  const m = analysisData?.metrics || analysisData
+  if (!m || !m.general) {
+    return null
+  }
+  const slides = generateStorySlides(m)
+  
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isRevealed, setIsRevealed] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
+  const viewShotRef = useRef(null)
 
   // ── Animasyon Değerleri ──
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -119,11 +170,20 @@ export default function StoriesScreen() {
   }, [goPrev, goNext])
 
   const handleShare = async () => {
+    if (isSharing) return
+    setIsSharing(true)
     try {
-      await Share.share({
-        message: `Sohbet analizimizin sonuçlarına bak! 😂\n${slide.badge}: ${slide.title}\n\nSen de kendi analizini çıkarmak istersen: https://anatomi.app`,
+      const uri = await viewShotRef.current.capture()
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Analiz Sonucunu Paylaş',
+        UTI: 'public.png'
       })
-    } catch {}
+    } catch (err) {
+      console.error('Share error:', err)
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   const handleSkip = () => {
@@ -174,42 +234,59 @@ export default function StoriesScreen() {
         </View>
 
         {/* Content with Animation */}
-        <Animated.View style={[styles.content, { 
-          opacity: fadeAnim, 
-          transform: [{ translateY: slideAnim }] 
-        }]}>
-          {!isRevealed ? (
-            // QUESTION MODE
-            <View style={styles.questionWrap}>
-              <View style={styles.questionIconCircle}>
-                <Text style={styles.questionIconText}>🤔</Text>
+        <ViewShot 
+          ref={viewShotRef} 
+          options={{ format: 'png', quality: 0.9 }}
+          style={{ flex: 1, backgroundColor: 'transparent' }}
+        >
+          <LinearGradient
+            colors={slide.gradient}
+            style={[StyleSheet.absoluteFill, { borderRadius: 0 }]}
+          />
+          
+          <Animated.View style={[styles.content, { 
+            opacity: fadeAnim, 
+            transform: [{ translateY: slideAnim }] 
+          }]}>
+            {!isRevealed ? (
+              // QUESTION MODE
+              <View style={styles.questionWrap}>
+                <View style={styles.questionIconCircle}>
+                  <Text style={styles.questionIconText}>🤔</Text>
+                </View>
+                <Text style={styles.questionText}>{slide.question}</Text>
+                <Text style={styles.tapHint}>Cevabı Görmek İçin Dokun</Text>
               </View>
-              <Text style={styles.questionText}>{slide.question}</Text>
-              <Text style={styles.tapHint}>Cevabı Görmek İçin Dokun</Text>
-            </View>
-          ) : (
-            // REVEAL MODE
-            <View style={styles.revealWrap}>
-              <View style={styles.revealIconCircle}>
-                <Text style={styles.revealIcon}>{slide.icon}</Text>
-              </View>
-              <View style={styles.badgeWrap}>
-                <Text style={styles.badgeText}>{slide.badge}</Text>
-              </View>
-              <Text style={[styles.revealTitle, { color: slide.titleAccent || Colors.primary }]}>
-                {slide.title}
-              </Text>
-              <Text style={styles.revealSubtitle}>{slide.subtitle}</Text>
+            ) : (
+              // REVEAL MODE
+              <View style={styles.revealWrap}>
+                <View style={styles.revealIconCircle}>
+                  <Text style={styles.revealIcon}>{slide.icon}</Text>
+                </View>
+                <View style={styles.badgeWrap}>
+                  <Text style={styles.badgeText}>{slide.badge}</Text>
+                </View>
+                <Text style={[styles.revealTitle, { color: slide.titleAccent || Colors.primary }]}>
+                  {slide.title}
+                </Text>
+                <Text style={styles.revealSubtitle}>{slide.subtitle}</Text>
 
-              <ExampleQuotes quotesList={slide.exampleQuote} />
+                <ExampleQuotes quotesList={slide.exampleQuote} />
 
-              {/* Share Button */}
-              <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-                <Text style={styles.shareBtnText}>📤  Paylaş</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </Animated.View>
+                {/* Share Button (Hidden during capture if needed, but usually we want it visible or we use a separate hidden view) */}
+                {!isSharing && (
+                  <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
+                    <Text style={styles.shareBtnText}>📤  Paylaş</Text>
+                  </TouchableOpacity>
+                )}
+                
+                {isSharing && (
+                  <ActivityIndicator color="#fff" style={{ marginTop: 20 }} />
+                )}
+              </View>
+            )}
+          </Animated.View>
+        </ViewShot>
 
         {/* Slide Counter */}
         <Text style={styles.counter}>
@@ -372,37 +449,37 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     fontSize: 12,
     textAlign: 'center',
+    marginTop: 10,
   },
   quoteWrap: {
     width: '100%',
-    marginVertical: 16,
     paddingHorizontal: 8,
   },
   quoteBubble: {
     maxWidth: '85%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    marginBottom: 6,
   },
   quoteBubbleLeft: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderTopLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   quoteBubbleRight: {
     alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderTopRightRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   quoteSender: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 4,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontWeight: '700',
@@ -410,6 +487,75 @@ const styles = StyleSheet.create({
   quoteMessage: {
     fontSize: 14,
     color: 'white',
-    lineHeight: 20,
+    lineHeight: 19,
+  },
+  viewSampleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginBottom: 24,
+  },
+  viewSampleBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#111b21',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '75%',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  dialogueGroup: {
+    marginBottom: 24,
+  },
+  dialogueDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 16,
+    width: '50%',
+    alignSelf: 'center',
   },
 })
