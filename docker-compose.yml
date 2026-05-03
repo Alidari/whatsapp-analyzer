@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: wa-backend
+    restart: unless-stopped
+    # Mobil uygulamanın dışarıdan erişebilmesi için portu açıyoruz
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+
+  frontend:
+    build: 
+      context: ./frontend
+    container_name: wa-frontend
+    restart: unless-stopped
+    ports:
+      # Siteniz 80 portundan veya Coolify hangi porta yönlendiriyorsa oradan yayınlanacak
+      - "80:80"
+    depends_on:
+      - backend
