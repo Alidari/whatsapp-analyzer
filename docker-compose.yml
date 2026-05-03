@@ -16,8 +16,8 @@ services:
       context: ./frontend
     container_name: wa-frontend
     restart: unless-stopped
-    ports:
-      # Siteniz 80 portundan veya Coolify hangi porta yönlendiriyorsa oradan yayınlanacak
-      - "80:80"
+    # Frontend de Coolify üzerinden proxy edileceği için dışarı port açmıyoruz
+    # Coolify, UI üzerinden ekleyeceğiniz domaine gelen istekleri 
+    # otomatik olarak bu konteynerin 80 portuna yönlendirecektir.
     depends_on:
       - backend
