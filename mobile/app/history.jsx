@@ -142,6 +142,13 @@ export default function HistoryScreen() {
             <Text style={styles.newBtnText}>+ Yeni</Text>
           </LinearGradient>
         </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={() => router.push('/settings')} 
+          style={styles.settingsBtn}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={24} color={Colors.onSurfaceVariant} />
+        </TouchableOpacity>
       </View>
 
       {analyses.length === 0 ? (
@@ -245,6 +252,10 @@ const styles = StyleSheet.create({
     color: Colors.onPrimary,
     fontWeight: '700',
     fontSize: 14,
+  },
+  settingsBtn: {
+    padding: 8,
+    marginLeft: 8,
   },
   list: {
     paddingHorizontal: 20,

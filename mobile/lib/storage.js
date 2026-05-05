@@ -64,3 +64,11 @@ export async function hasSeenOnboarding() {
 export async function markOnboardingDone() {
   return AsyncStorage.setItem(ONBOARDING_KEY, 'true')
 }
+
+export async function clearAllData() {
+  const keys = await AsyncStorage.getAllKeys()
+  await AsyncStorage.multiRemove(keys)
+  if (Platform.OS === 'ios') {
+    await SecureStore.deleteItemAsync(CLIENT_ID_KEY)
+  }
+}

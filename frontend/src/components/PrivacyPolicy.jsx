@@ -37,7 +37,7 @@ export default function PrivacyPolicy({ onClose }) {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-on-surface mb-4">2. Veri İşleme Prensibi: %100 Yerel ve Geçici</h2>
+            <h2 className="text-2xl font-bold text-on-surface mb-4">2. Veri İşleme Prensibi: Geçici ve Güvenli Sunucu İşlemi</h2>
             <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10">
               <p className="font-bold text-primary mb-2 italic">En Kritik Kuralımız:</p>
               <p>
@@ -53,6 +53,7 @@ export default function PrivacyPolicy({ onClose }) {
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>İstatistiksel Metrikler:</strong> Analiz sonucunda oluşan sayısal veriler (mesaj sayıları, kelime frekansları, duygu skorları) geçmişinizi görebilmeniz için veritabanımızda saklanır.</li>
               <li><strong>Cihaz Tanımlayıcı (Client ID):</strong> Geçmiş analizlerinize sadece sizin cihazınızdan erişilebilmesi için anonim bir cihaz kimliği kullanılır. Bu veri kişisel kimlik bilgilerinizle (isim, e-posta, telefon) eşleştirilmez.</li>
+              <li><strong>Dosya Erişimi:</strong> Uygulamamız sadece seçtiğiniz sohbet dosyasını okuyabilmek için depolama izni talep eder, galerinizdeki veya diğer klasörlerinizdeki dosyalara erişmez.</li>
               <li><strong>Log Kayıtları:</strong> Uygulama performansını iyileştirmek için anonim hata logları ve kullanım istatistikleri toplanabilir.</li>
             </ul>
           </section>
@@ -62,7 +63,7 @@ export default function PrivacyPolicy({ onClose }) {
             <p>
               Uygulamamız Google AdMob reklam ağını kullanmaktadır. Reklam gösterimi sırasında Google, ilgi alanınıza yönelik 
               reklamlar sunmak için cihazınızın reklam kimliğini (Advertising ID) kullanabilir. Bu işlem Google'ın kendi 
-              gizlilik politikasına tabidir.
+              gizlilik politikasına tabidir. Google'ın reklam gizlilik politikası hakkında daha fazla bilgi için <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google Gizlilik Politikası</a> sayfasını ziyaret edebilirsiniz.
             </p>
           </section>
 
@@ -84,7 +85,17 @@ export default function PrivacyPolicy({ onClose }) {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-on-surface mb-4">7. İletişim</h2>
+            <h2 className="text-2xl font-bold text-on-surface mb-4">7. Veri Silme Haklarınız</h2>
+            <p>
+              Veritabanımızda saklanan anonim analiz geçmişinizi ve cihaz kimliğinizi dilediğiniz zaman sildirebilirsiniz. 
+              Bunun için uygulama içindeki "Verilerimi Temizle" butonunu kullanabilir veya <strong>destek@anatomi.app</strong> adresi 
+              üzerinden bizimle iletişime geçebilirsiniz. Talebiniz üzerine tüm istatistiksel verileriniz 14 gün içerisinde 
+              kalıcı olarak silinecektir.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-on-surface mb-4">8. İletişim</h2>
             <p>
               Bu politika hakkında sorularınız için bizimle şu adresten iletişime geçebilirsiniz: <br />
               <span className="text-primary font-bold">destek@anatomi.app</span>
@@ -92,7 +103,7 @@ export default function PrivacyPolicy({ onClose }) {
           </section>
 
           <div className="pt-12 border-t border-white/5 text-sm opacity-50">
-            Son Güncelleme: 4 Mayıs 2026
+            Son Güncelleme: 5 Mayıs 2026
           </div>
         </div>
       </div>

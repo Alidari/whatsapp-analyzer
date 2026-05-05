@@ -8,6 +8,7 @@ import { Colors } from '../lib/colors'
 import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId, hasSeenOnboarding } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
+import { Ionicons } from '@expo/vector-icons'
 
 export default function IndexScreen() {
   const router = useRouter()
@@ -154,6 +155,15 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Settings Icon */}
+      <TouchableOpacity 
+        style={styles.settingsBtn} 
+        onPress={() => router.push('/settings')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="settings-outline" size={26} color={Colors.onSurfaceVariant} />
+      </TouchableOpacity>
+
       {/* Logo */}
       <Text style={styles.logo}>Anatomi</Text>
 
@@ -226,6 +236,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  settingsBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 25,
+    padding: 10,
+    zIndex: 10,
   },
   logo: {
     fontSize: 24,

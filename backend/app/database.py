@@ -488,6 +488,24 @@ def delete_analysis(analysis_id: str, client_id: str) -> bool:
         session.close()
 
 
+def delete_user_data(client_id: str) -> bool:
+    """Kullanıcının tüm analiz geçmişini ve kota bilgisini siler."""
+    session = _get_session()
+    try:
+        # Analizleri sil
+        session.query(Analysis).filter(Analysis.client_id == client_id).delete()
+        # Kota bilgisini sil
+        session.query(UserQuota).filter(UserQuota.client_id == client_id).delete()
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Kullanıcı verisi silme hatası: {e}")
+        return False
+    finally:
+        session.close()
+
+
 def rename_analysis(analysis_id: str, client_id: str, new_name: str) -> bool:
     """Bir analizin adını değiştirir. Güvenlik: client_id eşleşmesi zorunlu."""
     session = _get_session()

@@ -16,14 +16,14 @@ export default function TrustSection() {
         <span className="material-symbols-outlined text-primary text-5xl mb-6 block">shield_lock</span>
         <h2 className="text-4xl font-headline font-bold mb-6">Gizliliğiniz Bizim Manifestomuz</h2>
         <p className="text-on-surface-variant text-lg leading-relaxed mb-10">
-          Analiz süreci tamamen cihazınızın işlemcisini kullanır. Verileriniz sunucularımıza gitmez,
-          kaydedilmez ve üçüncü partilerle paylaşılmaz. Sayfayı yenilediğinizde her şey silinir.
+          Analiz süreci sırasında verileriniz sunucumuzda sadece RAM'de işlenir. 
+          Hiçbir mesajınız kalıcı olarak kaydedilmez ve üçüncü partilerle paylaşılmaz.
         </p>
         <div className="flex flex-wrap justify-center gap-8">
           {[
-            { icon: 'cloud', text: 'Veri Transferi Yok' },
+            { icon: 'temp_preferences_custom', text: 'Geçici İşleme' },
             { icon: 'visibility_off', text: 'Anonim İşleme' },
-            { icon: 'lock_open', text: 'Açık Kaynak Güveni' },
+            { icon: 'security', text: 'Uçtan Uca Güvenli' },
           ].map((item) => (
             <div key={item.text} className="flex items-center gap-2 text-primary font-label text-sm">
               <span className="material-symbols-outlined">{item.icon}</span>

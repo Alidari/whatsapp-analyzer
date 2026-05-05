@@ -117,6 +117,29 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
     }
   }
 
+  const handleDeleteAll = async () => {
+    if (!window.confirm("Tüm verileriniz (analiz geçmişi ve ayarlar) silinecektir. Bu işlem geri alınamaz. Emin misiniz?")) {
+      return
+    }
+
+    try {
+      const resp = await fetch('/api/user/data', {
+        method: 'DELETE',
+        headers: {
+          'X-Client-ID': clientId,
+          'X-API-Key': 'AnatomiSecureKey2026!'
+        },
+      })
+      if (resp.ok) {
+        localStorage.clear()
+        window.location.href = '/'
+      }
+    } catch (err) {
+      console.error('Delete all error:', err)
+      alert('Veriler silinirken bir hata oluştu.')
+    }
+  }
+
   const handleSelect = async (id) => {
     setLoadingDetail(id)
     try {
@@ -177,6 +200,13 @@ export default function AnalysisHistory({ clientId, onSelectAnalysis, onNewAnaly
           >
             <span className="material-symbols-outlined text-lg">add</span>
             Yeni Analiz
+          </button>
+          <button
+            onClick={handleDeleteAll}
+            className="bg-error/10 hover:bg-error/20 text-error font-headline font-bold py-3 px-6 rounded-2xl text-sm transition-all flex items-center gap-2 shrink-0"
+          >
+            <span className="material-symbols-outlined text-lg">delete_forever</span>
+            Tüm Verilerimi Sil
           </button>
         </div>
 

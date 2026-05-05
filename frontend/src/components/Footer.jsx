@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="flex flex-col gap-2">
           <div className="text-primary font-headline font-black tracking-tighter text-lg">Anatomi</div>
           <p className="text-xs text-on-background/40 max-w-md font-label">
-            © 2026 Sohbetinizin Anatomisi. Verileriniz asla sunucularımıza ulaşmaz; analiz tamamen tarayıcınızda gerçekleşir.
+            © 2026 Sohbetinizin Anatomisi. Verileriniz sunucuda sadece analiz süresince RAM'de işlenir ve asla kalıcı olarak saklanmaz.
           </p>
         </div>
         <div className="flex gap-8">

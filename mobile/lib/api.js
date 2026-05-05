@@ -167,6 +167,15 @@ export async function renameHistoryItem(analysisId, newName) {
   return resp.ok
 }
 
+export async function deleteUserData() {
+  const h = await headers()
+  const resp = await fetch(`${BASE_URL}/api/user/data`, {
+    method: 'DELETE',
+    headers: h,
+  })
+  return resp.ok
+}
+
 // ──────────────────────────────────────────────
 //  Ad & Quota Endpoints
 // ──────────────────────────────────────────────

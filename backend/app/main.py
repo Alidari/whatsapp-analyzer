@@ -36,7 +36,7 @@ from .database import (
     init_db, save_analysis, get_history, get_analysis_detail,
     delete_analysis, rename_analysis, has_history, compute_chat_hash,
     check_quota, use_quota, earn_quota, unlock_history, get_admin_stats,
-    update_subscription, _get_or_create_quota, _get_session
+    update_subscription, _get_or_create_quota, _get_session, delete_user_data
 )
 
 # ──────────────────────────────────────────────
@@ -558,6 +558,16 @@ async def rename_history(analysis_id: str, body: RenameRequest, request: Request
         raise HTTPException(status_code=404, detail="Analiz bulunamadı veya erişim yetkiniz yok.")
     
     return {"success": True, "message": "İsim güncellendi."}
+    
+    
+@app.delete("/api/user/data")
+async def delete_user_data_endpoint(request: Request):
+    """Kullanıcının tüm verilerini (geçmiş analizler ve kota bilgisi) siler."""
+    client_id = _get_client_id(request)
+    success = delete_user_data(client_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Veriler silinirken bir hata oluştu.")
+    return {"success": True, "message": "Tüm verileriniz başarıyla silindi."}
 
 
 # ──────────────────────────────────────────────
