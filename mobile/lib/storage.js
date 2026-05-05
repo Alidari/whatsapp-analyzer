@@ -53,3 +53,14 @@ export async function setJobId(jobId) {
 export async function clearJobId() {
   return AsyncStorage.removeItem(JOB_ID_KEY)
 }
+
+const ONBOARDING_KEY = 'anatomi_onboarding_done'
+
+export async function hasSeenOnboarding() {
+  const val = await AsyncStorage.getItem(ONBOARDING_KEY)
+  return val === 'true'
+}
+
+export async function markOnboardingDone() {
+  return AsyncStorage.setItem(ONBOARDING_KEY, 'true')
+}

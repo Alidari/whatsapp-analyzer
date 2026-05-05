@@ -6,11 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import * as DocumentPicker from 'expo-document-picker'
 import { Colors } from '../lib/colors'
 import { uploadFile, hasHistory, earnQuota } from '../lib/api'
-import { setJobId, getJobId } from '../lib/storage'
+import { setJobId, getJobId, hasSeenOnboarding } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
-import SubscriptionModal from '../components/SubscriptionModal'
-import { useSubscription } from '../components/SubscriptionContext'
-import { Ionicons } from '@expo/vector-icons'
 
 export default function IndexScreen() {
   const router = useRouter()
@@ -19,14 +16,21 @@ export default function IndexScreen() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
-  const [subModalVisible, setSubModalVisible] = useState(false)
-  const { isSubscribed, quota } = useSubscription()
 
   useEffect(() => {
     // Preload Rewarded Ad when the screen starts
     loadRewarded()
     
     async function init() {
+      // İlk kez açılıyorsa onboarding göster
+      if (params.forceOpen !== '1' && params.fromOnboarding !== '1') {
+        const seen = await hasSeenOnboarding()
+        if (!seen) {
+          router.replace('/onboarding')
+          return
+        }
+      }
+
       // Devam eden iş var mı?
       const existingJob = await getJobId()
       if (existingJob) {
@@ -109,13 +113,9 @@ export default function IndexScreen() {
     if (err.message === 'LIMIT_REACHED') {
       Alert.alert(
         "Limit Doldu 🔒",
-        "Günlük ücretsiz analiz hakkınızı doldurdunuz. Reklam izleyebilir veya Premium alarak sınırsız analiz yapabilirsiniz.",
+        "Günlük ücretsiz analiz hakkınızı doldurdunuz. Reklam izleyerek ekstra hak kazanabilirsiniz.",
         [
           { text: 'Vazgeç', style: 'cancel' },
-          { 
-            text: 'Premium Al',
-            onPress: () => setSubModalVisible(true)
-          },
           { 
             text: 'Reklam İzle', 
             onPress: async () => {
@@ -154,27 +154,6 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Quota Badge */}
-      <View style={styles.quotaBadge}>
-        <Ionicons name="flash" size={12} color={isSubscribed ? '#FFD700' : Colors.primary} />
-        <Text style={styles.quotaText}>
-          {isSubscribed 
-            ? 'Sınırsız Analiz' 
-            : `${quota.max - quota.used} / ${quota.max} Analiz Hakkı`
-          }
-        </Text>
-      </View>
-
-      {/* Premium Button */}
-      {!isSubscribed && (
-        <TouchableOpacity 
-          style={styles.premiumBadge}
-          onPress={() => setSubModalVisible(true)}
-        >
-          <Text style={styles.premiumBadgeText}>✨ Premium'a Geç</Text>
-        </TouchableOpacity>
-      )}
-
       {/* Logo */}
       <Text style={styles.logo}>Anatomi</Text>
 
@@ -230,11 +209,6 @@ export default function IndexScreen() {
       <View style={[styles.bannerContainer, { paddingBottom: insets.bottom }]}>
         <AppBannerAd />
       </View>
-
-      <SubscriptionModal 
-        visible={subModalVisible} 
-        onClose={() => setSubModalVisible(false)} 
-      />
     </View>
   )
 }

@@ -13,8 +13,6 @@ import {
 import HistoryCard from '../components/HistoryCard'
 
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
-import SubscriptionModal from '../components/SubscriptionModal'
-import { useSubscription } from '../components/SubscriptionContext'
 
 export default function HistoryScreen() {
   const router = useRouter()
@@ -22,8 +20,6 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [loadingId, setLoadingId] = useState(null)
-  const [subModalVisible, setSubModalVisible] = useState(false)
-  const { isSubscribed, quota, checkSubscription } = useSubscription()
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -45,8 +41,8 @@ export default function HistoryScreen() {
   const handleSelect = async (item) => {
     const { id, is_unlocked } = item
     
-    // Kilitliyse ve Abone DEĞİLSE Reklam Göster
-    if (!is_unlocked && !isSubscribed) {
+    // Kilitliyse Reklam Göster
+    if (!is_unlocked) {
       Alert.alert(
         "Kilitli Analiz 🔒",
         "Bu raporu yeniden görüntülemek üzere kilidini açabilirsiniz.",
@@ -148,24 +144,6 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Quota Status */}
-      <View style={styles.quotaHeader}>
-        <View style={styles.quotaBadge}>
-          <Ionicons name="flash" size={10} color={isSubscribed ? '#FFD700' : Colors.primary} />
-          <Text style={styles.quotaText}>
-            {isSubscribed 
-              ? 'Premium Üye (Sınırsız)' 
-              : `${quota.max - quota.used} / ${quota.max} Günlük Hak`
-            }
-          </Text>
-        </View>
-        {!isSubscribed && (
-          <TouchableOpacity onPress={() => setSubModalVisible(true)}>
-            <Text style={styles.upgradeText}>Yükselt ✨</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
       {analyses.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Ionicons 
@@ -219,11 +197,6 @@ export default function HistoryScreen() {
 
       {/* Banner Reklam */}
       <AppBannerAd />
-
-      <SubscriptionModal 
-        visible={subModalVisible} 
-        onClose={() => setSubModalVisible(false)} 
-      />
     </View>
   )
 }

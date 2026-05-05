@@ -1,47 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSubscriptionStatus } from '../lib/api';
-import { initIAP, setupIAPListeners } from '../lib/subscription';
 
 const SubscriptionContext = createContext({
   isSubscribed: false,
   quota: { used: 0, max: 1 },
   checkSubscription: async () => {},
-  loading: true,
+  loading: false,
 });
 
 export const SubscriptionProvider = ({ children }) => {
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [quota, setQuota] = useState({ used: 0, max: 1 });
-  const [loading, setLoading] = useState(true);
 
   const checkSubscription = async () => {
     try {
       const status = await getSubscriptionStatus();
-      setIsSubscribed(status.is_subscribed);
       setQuota({
         used: status.daily_scans_used,
-        max: status.max_scans_today
+        max: status.max_scans_today,
       });
     } catch (err) {
-      console.error('Check Sub Error:', err);
-    } finally {
-      setLoading(false);
+      // Ignore — backend may be unavailable
     }
   };
 
   useEffect(() => {
     checkSubscription();
-    initIAP();
-    
-    const cleanup = setupIAPListeners(() => {
-      setIsSubscribed(true);
-    });
-
-    return () => cleanup();
   }, []);
 
   return (
-    <SubscriptionContext.Provider value={{ isSubscribed, quota, checkSubscription, loading }}>
+    <SubscriptionContext.Provider value={{
+      isSubscribed: false, // always false until IAP is re-enabled
+      quota,
+      checkSubscription,
+      loading: false,
+    }}>
       {children}
     </SubscriptionContext.Provider>
   );
