@@ -42,6 +42,7 @@ class UserQuota(Base):
     daily_scans_used = Column(Integer, default=0)
     max_scans_today = Column(Integer, default=1)
     lifetime_scans = Column(Integer, default=0)
+    is_subscribed = Column(Integer, default=0) # 0 = No, 1 = Yes
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Analysis(Base):
@@ -101,7 +102,11 @@ def init_db():
         try:
             conn.execute("ALTER TABLE analyses ADD COLUMN is_unlocked INTEGER DEFAULT 0")
         except Exception:
-            pass # Col already exists
+            pass
+        try:
+            conn.execute("ALTER TABLE user_quotas ADD COLUMN is_subscribed INTEGER DEFAULT 0")
+        except Exception:
+            pass
             
     print(f"✅ Veritabanı hazır: {DB_PATH}")
 
@@ -244,6 +249,8 @@ def check_quota(client_id: str) -> bool:
     try:
         quota = _get_or_create_quota(session, client_id)
         session.commit()
+        if quota.is_subscribed:
+            return True
         return quota.daily_scans_used < quota.max_scans_today
     finally:
         session.close()
@@ -265,6 +272,16 @@ def earn_quota(client_id: str):
     try:
         quota = _get_or_create_quota(session, client_id)
         quota.max_scans_today += 1
+        session.commit()
+    finally:
+        session.close()
+
+def update_subscription(client_id: str, is_subscribed: bool):
+    """Kullanıcının abonelik durumunu günceller."""
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        quota.is_subscribed = 1 if is_subscribed else 0
         session.commit()
     finally:
         session.close()
@@ -314,6 +331,9 @@ def save_analysis(
         if len(senders) > 4:
             auto_name += f" +{len(senders) - 4}"
 
+        quota = _get_or_create_quota(session, client_id)
+        is_sub = bool(quota.is_subscribed)
+
         analysis = Analysis(
             id=str(uuid.uuid4()),
             client_id=client_id,
@@ -328,7 +348,7 @@ def save_analysis(
             metrics_json=json.dumps(safe_metrics, ensure_ascii=False, default=str),
             analysis_time_seconds=int(analysis_time),
             file_size_bytes=file_size,
-            is_unlocked=0 # İlk başta kilitli, loading ekranında açılacak.
+            is_unlocked=1 if is_sub else 0 # Aboneyse direkt açık, değilse kilitli.
         )
 
         session.add(analysis)

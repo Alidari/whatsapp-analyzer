@@ -188,3 +188,21 @@ export async function unlockHistory(analysisId) {
   })
   return resp.ok
 }
+
+export async function getSubscriptionStatus() {
+  const h = await headers()
+  const resp = await fetch(`${BASE_URL}/api/subscription-status`, { headers: h })
+  if (!resp.ok) return { is_subscribed: false }
+  return resp.json()
+}
+
+export async function verifySubscription(purchaseToken, productId) {
+  const h = await headers()
+  h['Content-Type'] = 'application/json'
+  const resp = await fetch(`${BASE_URL}/api/verify-subscription`, {
+    method: 'POST',
+    headers: h,
+    body: JSON.stringify({ purchaseToken, productId }),
+  })
+  return resp.json()
+}

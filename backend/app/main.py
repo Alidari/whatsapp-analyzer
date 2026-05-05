@@ -23,6 +23,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import os
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -32,7 +35,8 @@ from .analyzer import run_full_analysis
 from .database import (
     init_db, save_analysis, get_history, get_analysis_detail,
     delete_analysis, rename_analysis, has_history, compute_chat_hash,
-    check_quota, use_quota, earn_quota, unlock_history, get_admin_stats
+    check_quota, use_quota, earn_quota, unlock_history, get_admin_stats,
+    update_subscription, _get_or_create_quota, _get_session
 )
 
 # ──────────────────────────────────────────────
@@ -102,6 +106,44 @@ def _get_client_id(request: Request) -> str:
     if not client_id or len(client_id) > 64:
         raise HTTPException(status_code=400, detail="Geçerli bir X-Client-ID header'ı gerekli.")
     return client_id
+
+
+# ──────────────────────────────────────────────
+#  Google Play Verification Helper
+# ──────────────────────────────────────────────
+
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), "../data/google-service-key.json")
+PACKAGE_NAME = "com.anatomi.app"
+
+def verify_google_purchase(token: str, product_id: str) -> bool:
+    """
+    Google Play Android Developer API kullanarak aboneliği doğrular.
+    Service account JSON dosyası 'backend/data/google-service-key.json' yolunda olmalıdır.
+    """
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        print("⚠️ Service account key not found. Skipping real verification.")
+        return True # Dev mode: always true if key missing
+
+    try:
+        scopes = ['https://www.googleapis.com/auth/androidpublisher']
+        creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+        service = build('androidpublisher', 'v3', credentials=creds)
+        
+        # Abonelik kontrolü
+        result = service.purchases().subscriptions().get(
+            packageName=PACKAGE_NAME,
+            subscriptionId=product_id,
+            token=token
+        ).execute()
+        
+        # Expiry kontrolü
+        expiry_time = int(result.get('expiryTimeMillis', 0))
+        if expiry_time > int(time.time() * 1000):
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Google Verification Error: {e}")
+        return False
 
 
 # ──────────────────────────────────────────────
@@ -416,6 +458,45 @@ async def unlock_history_endpoint(analysis_id: str, request: Request):
     if not success:
         raise HTTPException(status_code=404, detail="Analiz bulunamadı veya açılamadı.")
     return {"success": True, "message": "Analiz açıldı."}
+    
+
+@app.get("/api/subscription-status")
+async def get_subscription_status(request: Request):
+    """Kullanıcının abonelik durumunu döner."""
+    client_id = _get_client_id(request)
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        return {
+            "is_subscribed": bool(quota.is_subscribed),
+            "daily_scans_used": quota.daily_scans_used,
+            "max_scans_today": quota.max_scans_today
+        }
+    finally:
+        session.close()
+
+
+class VerifySubRequest(BaseModel):
+    purchaseToken: str
+    productId: str
+
+@app.post("/api/verify-subscription")
+async def verify_subscription(body: VerifySubRequest, request: Request):
+    """
+    Google Play abonelik doğrulama.
+    NOT: Gerçek uygulamada Google Play Developer API ile token doğrulanmalıdır.
+    Şimdilik client-side başarılıysa güveniyoruz.
+    """
+    client_id = _get_client_id(request)
+    
+    # Real verification
+    is_valid = verify_google_purchase(body.purchaseToken, body.productId)
+    
+    if is_valid:
+        update_subscription(client_id, True)
+        return {"success": True, "message": "Abonelik başarıyla aktifleştirildi."}
+    else:
+        raise HTTPException(status_code=400, detail="Abonelik doğrulaması başarısız oldu.")
 
 
 @app.get("/api/history")

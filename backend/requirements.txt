@@ -9,3 +9,5 @@ python-dateutil==2.9.0
 sqlalchemy==2.0.35
 aiosqlite==0.20.0
 slowapi==0.1.9
+google-api-python-client==2.128.0
+google-auth==2.29.0

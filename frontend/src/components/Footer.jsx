@@ -9,15 +9,24 @@ export default function Footer() {
           </p>
         </div>
         <div className="flex gap-8">
-          {['Gizlilik Politikası', 'Nasıl Çalışır?', 'Güvenlik Manifestosu'].map((link) => (
-            <a
-              key={link}
-              href="#"
-              className="text-xs text-on-background/40 hover:text-on-background transition-colors font-label"
-            >
-              {link}
-            </a>
-          ))}
+          <a
+            href="/privacy"
+            className="text-xs text-on-background/40 hover:text-on-background transition-colors font-label"
+          >
+            Gizlilik Politikası
+          </a>
+          <a
+            href="#how-it-works"
+            className="text-xs text-on-background/40 hover:text-on-background transition-colors font-label"
+          >
+            Nasıl Çalışır?
+          </a>
+          <a
+            href="#security"
+            className="text-xs text-on-background/40 hover:text-on-background transition-colors font-label"
+          >
+            Güvenlik Manifestosu
+          </a>
         </div>
       </div>
     </footer>

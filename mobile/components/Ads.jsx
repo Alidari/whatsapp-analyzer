@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { Platform, View, Text } from 'react-native'
 import { BannerAd, BannerAdSize, TestIds, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads'
 
+import { useSubscription } from './SubscriptionContext'
+
 // Use test IDs for development
 const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-1645648125009801/1821778350'
 const interstitialId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy' // Not used yet based on user requirements
@@ -9,7 +11,9 @@ const rewardedId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-1645648125009801/426
 
 // ── BANNER AD ──
 export function AppBannerAd() {
-  if (Platform.OS === 'web') return null; // Ads not supported on web via this package
+  const { isSubscribed } = useSubscription()
+  
+  if (Platform.OS === 'web' || isSubscribed) return null; // Ads not supported on web or for subscribers
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}>
       {/* Banner will load securely here */}

@@ -5,6 +5,7 @@ import { Colors } from '../lib/colors'
 import { checkJobStatus, unlockHistory } from '../lib/api'
 import { getJobId, clearJobId } from '../lib/storage'
 import { showRewardedAsync, loadRewarded } from '../components/Ads'
+import { useSubscription } from '../components/SubscriptionContext'
 
 const MESSAGES = [
   { text: 'Mesajlarınız okunuyor...', icon: '💬' },
@@ -22,8 +23,9 @@ export default function LoadingScreen() {
   const router = useRouter()
   const [msgIndex, setMsgIndex] = useState(0)
   const spinAnim = useRef(new Animated.Value(0)).current
-  const pulseAnim = useRef(new Animated.Value(1)).current
+  const [pulseAnim] = useState(new Animated.Value(1))
   const [waitingForAd, setWaitingForAd] = useState(false)
+  const { isSubscribed } = useSubscription()
 
   useEffect(() => {
     loadRewarded()
@@ -79,6 +81,15 @@ export default function LoadingScreen() {
             await clearJobId()
             setWaitingForAd(true)
             
+            if (isSubscribed) {
+              // Premium user: directly go to stories
+              router.replace({
+                pathname: '/stories',
+                params: { data: JSON.stringify(data.result) },
+              })
+              return
+            }
+
             // Show alert for Rewarded Ad
             Alert.alert(
               "Analiz Tamamlandı! 🎉",

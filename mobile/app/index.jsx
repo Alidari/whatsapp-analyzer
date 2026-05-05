@@ -8,6 +8,9 @@ import { Colors } from '../lib/colors'
 import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
+import SubscriptionModal from '../components/SubscriptionModal'
+import { useSubscription } from '../components/SubscriptionContext'
+import { Ionicons } from '@expo/vector-icons'
 
 export default function IndexScreen() {
   const router = useRouter()
@@ -16,6 +19,8 @@ export default function IndexScreen() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
+  const [subModalVisible, setSubModalVisible] = useState(false)
+  const { isSubscribed, quota } = useSubscription()
 
   useEffect(() => {
     // Preload Rewarded Ad when the screen starts
@@ -104,9 +109,13 @@ export default function IndexScreen() {
     if (err.message === 'LIMIT_REACHED') {
       Alert.alert(
         "Limit Doldu 🔒",
-        "Günlük ücretsiz analiz hakkınızı doldurdunuz. Kısa bir reklam izleyerek 1 hak daha kazanmak ister misiniz?",
+        "Günlük ücretsiz analiz hakkınızı doldurdunuz. Reklam izleyebilir veya Premium alarak sınırsız analiz yapabilirsiniz.",
         [
           { text: 'Vazgeç', style: 'cancel' },
+          { 
+            text: 'Premium Al',
+            onPress: () => setSubModalVisible(true)
+          },
           { 
             text: 'Reklam İzle', 
             onPress: async () => {
@@ -115,6 +124,7 @@ export default function IndexScreen() {
                 const completed = await showRewardedAsync()
                 if (completed) {
                   await earnQuota()
+                  await checkSubscription() // Refresh quota display
                   Alert.alert('Tebrikler!', 'Yeni bir analiz hakkı kazandınız.', [
                     { text: 'Tekrar Dene', onPress: () => sendFile(uri, name, fileObj) }
                   ])
@@ -144,6 +154,27 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Quota Badge */}
+      <View style={styles.quotaBadge}>
+        <Ionicons name="flash" size={12} color={isSubscribed ? '#FFD700' : Colors.primary} />
+        <Text style={styles.quotaText}>
+          {isSubscribed 
+            ? 'Sınırsız Analiz' 
+            : `${quota.max - quota.used} / ${quota.max} Analiz Hakkı`
+          }
+        </Text>
+      </View>
+
+      {/* Premium Button */}
+      {!isSubscribed && (
+        <TouchableOpacity 
+          style={styles.premiumBadge}
+          onPress={() => setSubModalVisible(true)}
+        >
+          <Text style={styles.premiumBadgeText}>✨ Premium'a Geç</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Logo */}
       <Text style={styles.logo}>Anatomi</Text>
 
@@ -199,6 +230,11 @@ export default function IndexScreen() {
       <View style={[styles.bannerContainer, { paddingBottom: insets.bottom }]}>
         <AppBannerAd />
       </View>
+
+      <SubscriptionModal 
+        visible={subModalVisible} 
+        onClose={() => setSubModalVisible(false)} 
+      />
     </View>
   )
 }
@@ -222,7 +258,40 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Colors.primary,
     letterSpacing: -1,
-    marginBottom: 40,
+    marginBottom: 20,
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  premiumBadgeText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  quotaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  quotaText: {
+    color: '#ccc',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   title: {
     fontSize: 42,

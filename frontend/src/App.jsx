@@ -15,6 +15,7 @@ import RelationshipWheel from './components/RelationshipWheel'
 import AnimatedBackground from './components/AnimatedBackground'
 import AnalysisHistory from './components/AnalysisHistory'
 import AdminPanel from './components/AdminPanel'
+import PrivacyPolicy from './components/PrivacyPolicy'
 
 // ──────────────────────────────────────────────
 //  Client ID — Anonim UUID yönetimi
@@ -52,6 +53,11 @@ function App() {
   useEffect(() => {
     if (window.location.pathname === '/admin') {
       setActiveView('admin')
+      return
+    }
+
+    if (window.location.pathname === '/privacy') {
+      setActiveView('privacy')
       return
     }
 
@@ -250,6 +256,16 @@ function App() {
               window.history.replaceState(null, '', '/')
               handleBackToLanding()
             }} 
+          />
+        )}
+
+        {activeView === 'privacy' && (
+          <PrivacyPolicy 
+            key="privacy"
+            onClose={() => {
+              window.history.replaceState(null, '', '/')
+              handleBackToLanding()
+            }}
           />
         )}
 

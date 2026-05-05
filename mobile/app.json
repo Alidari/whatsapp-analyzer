@@ -23,7 +23,9 @@
         "backgroundColor": "#0b141b"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anatomi.app"
+      "package": "com.anatomi.app",
+      "versionCode": 1,
+      "permissions": ["INTERNET", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -32,6 +34,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "react-native-iap",
       [
         "react-native-google-mobile-ads",
         {
