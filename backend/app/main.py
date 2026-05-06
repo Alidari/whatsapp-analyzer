@@ -78,6 +78,8 @@ app.add_middleware(
     allow_origins=[
         "https://anatomi.app",
         "https://www.anatomi.app",
+        "https://anatomi.alidari.dev",
+        "https://anatomi-api.alidari.dev",
         "http://localhost:5173",
         "http://localhost:80",
         "http://localhost"

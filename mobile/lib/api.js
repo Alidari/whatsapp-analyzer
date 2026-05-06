@@ -11,9 +11,7 @@ import { getClientId } from './storage'
 // Android emülatör için: 10.0.2.2
 // iOS simülatör için: localhost
 // Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
-const BASE_URL = __DEV__
-  ? 'http://di4lk8fj11h9v512miuiq5ye.213.199.57.168.sslip.io'
-  : 'http://di4lk8fj11h9v512miuiq5ye.213.199.57.168.sslip.io'
+const BASE_URL = 'https://anatomi-api.alidari.dev'
 
 async function headers() {
   const clientId = await getClientId()
