@@ -88,7 +88,7 @@ export default function PrivacyPolicy({ onClose }) {
             <h2 className="text-2xl font-bold text-on-surface mb-4">7. Veri Silme Haklarınız</h2>
             <p>
               Veritabanımızda saklanan anonim analiz geçmişinizi ve cihaz kimliğinizi dilediğiniz zaman sildirebilirsiniz. 
-              Bunun için uygulama içindeki "Verilerimi Temizle" butonunu kullanabilir veya <strong>destek@anatomi.app</strong> adresi 
+              Bunun için uygulama içindeki "Verilerimi Temizle" butonunu kullanabilir veya <strong>bruhrecords1@gmail.com</strong> adresi 
               üzerinden bizimle iletişime geçebilirsiniz. Talebiniz üzerine tüm istatistiksel verileriniz 14 gün içerisinde 
               kalıcı olarak silinecektir.
             </p>
@@ -98,7 +98,7 @@ export default function PrivacyPolicy({ onClose }) {
             <h2 className="text-2xl font-bold text-on-surface mb-4">8. İletişim</h2>
             <p>
               Bu politika hakkında sorularınız için bizimle şu adresten iletişime geçebilirsiniz: <br />
-              <span className="text-primary font-bold">destek@anatomi.app</span>
+              <span className="text-primary font-bold">bruhrecords1@gmail.com</span>
             </p>
           </section>
 

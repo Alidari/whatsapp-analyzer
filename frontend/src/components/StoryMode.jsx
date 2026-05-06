@@ -803,7 +803,7 @@ export default function StoryMode({ data, onClose }) {
           {/* Watermark only visible in Shared Image */}
           {isSharing && (
              <div className="absolute bottom-6 left-0 right-0 text-center text-white/50 text-xs font-label opacity-80">
-                Aramızdaki analizi görmek istersen: anatomi.app
+                Aramızdaki analizi görmek istersen: https://anatomi.alidari.dev
              </div>
           )}
         </motion.div>

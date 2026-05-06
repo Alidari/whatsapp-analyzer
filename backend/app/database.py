@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, create_engine, desc
+    Column, String, Integer, Text, DateTime, create_engine, desc, text
 )
 from sqlalchemy.orm import declarative_base, Session, sessionmaker
 
@@ -100,13 +100,13 @@ def init_db():
     # Simple migration for is_unlocked
     with engine.begin() as conn:
         try:
-            conn.execute("ALTER TABLE analyses ADD COLUMN is_unlocked INTEGER DEFAULT 0")
-        except Exception:
-            pass
+            conn.execute(text("ALTER TABLE analyses ADD COLUMN is_unlocked INTEGER DEFAULT 0"))
+        except Exception as e:
+            print(f"ℹ️ Migration (is_unlocked) skipped or failed: {e}")
         try:
-            conn.execute("ALTER TABLE user_quotas ADD COLUMN is_subscribed INTEGER DEFAULT 0")
-        except Exception:
-            pass
+            conn.execute(text("ALTER TABLE user_quotas ADD COLUMN is_subscribed INTEGER DEFAULT 0"))
+        except Exception as e:
+            print(f"ℹ️ Migration (is_subscribed) skipped or failed: {e}")
             
     print(f"✅ Veritabanı hazır: {DB_PATH}")
 

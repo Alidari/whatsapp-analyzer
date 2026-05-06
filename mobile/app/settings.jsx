@@ -45,11 +45,11 @@ export default function SettingsScreen() {
   }
 
   const openPrivacy = () => {
-    Linking.openURL('https://anatomi.app/privacy')
+    Linking.openURL('https://anatomi.alidari.dev/privacy')
   }
 
   const openSupport = () => {
-    Linking.openURL('mailto:destek@anatomi.app')
+    Linking.openURL('mailto:bruhrecords1@gmail.com')
   }
 
   return (
