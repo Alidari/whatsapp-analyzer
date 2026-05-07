@@ -1,34 +1,49 @@
 import React, { useEffect, useState } from 'react'
 import { Platform, View, Text } from 'react-native'
-import { BannerAd, BannerAdSize, TestIds, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads'
+import mobileAds, { BannerAd, BannerAdSize, TestIds, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads'
 
 import { useSubscription } from './SubscriptionContext'
 
-// Use test IDs for development
-const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-1645648125009801/1821778350'
-const interstitialId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyy' // Not used yet based on user requirements
-const rewardedId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-1645648125009801/4265989191'
+// SDK Başlatma
+mobileAds()
+  .initialize()
+  .then(adapterStatuses => {
+    // Initialization complete!
+    console.log('AdMob Initialized');
+  });
+
+// Use test IDs for development OR if we want to test APK with test ads
+// Buradaki 'false' değerini APK'da gerçek reklam görmek istiyorsan elle true yapabilirsin
+const FORCE_TEST_ADS = true; 
+
+const isTestMode = __DEV__ || FORCE_TEST_ADS;
+
+const adUnitId = isTestMode ? TestIds.BANNER : 'ca-app-pub-1645648125009801/1821778350'
+const interstitialId = isTestMode ? TestIds.INTERSTITIAL : TestIds.INTERSTITIAL // Gerçek ID gelene kadar test kalsın
+const rewardedId = isTestMode ? TestIds.REWARDED : 'ca-app-pub-1645648125009801/4265989191'
 
 // ── BANNER AD ──
 export function AppBannerAd() {
   const { isSubscribed } = useSubscription()
   
-  if (Platform.OS === 'web' || isSubscribed) return null; // Ads not supported on web or for subscribers
+  if (Platform.OS === 'web' || isSubscribed) return null; 
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}>
-      {/* Banner will load securely here */}
       <BannerAd
         unitId={adUnitId}
         size={BannerAdSize.BANNER}
         requestOptions={{
           requestNonPersonalizedAdsOnly: true,
         }}
+        onAdFailedToLoad={(error) => {
+          console.error('Banner Ad Failed: ', error);
+        }}
       />
     </View>
   )
 }
 
-// ── INTERSTITIAL AD (Geçiş) ──
+// ── INTERSTITIAL AD ──
 let interstitialAd = InterstitialAd.createForAdRequest(interstitialId, {
   requestNonPersonalizedAdsOnly: true,
 })
@@ -48,17 +63,18 @@ export function showInterstitialAsync() {
     if (interstitialAd.loaded) {
       const unsubscribeClosed = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
         unsubscribeClosed()
-        interstitialAd.load() // Load next
+        interstitialAd.load()
         resolve(true)
       })
       interstitialAd.show()
     } else {
-      resolve(false) // Didn't load in time, ignore
+      console.log('Interstitial not loaded');
+      resolve(false) 
     }
   })
 }
 
-// ── REWARDED AD (Ödüllü) ──
+// ── REWARDED AD ──
 let rewardedAd = RewardedAd.createForAdRequest(rewardedId, {
   requestNonPersonalizedAdsOnly: true,
 })
@@ -71,7 +87,7 @@ export function loadRewarded() {
 export function showRewardedAsync() {
   return new Promise((resolve, reject) => {
     if (Platform.OS === 'web') {
-      resolve(true); // Always reward on web for now
+      resolve(true);
       return;
     }
 
@@ -85,17 +101,19 @@ export function showRewardedAsync() {
       const unsubscribeClosed = rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
         unsubscribeEarned()
         unsubscribeClosed()
-        rewardedAd.load() // Preload next
+        rewardedAd.load() 
         if (rewarded) {
           resolve(true)
         } else {
-          reject(new Error('Reklam tamamlanmadan kapatıldı.'))
+          reject(new Error('Reklam tamamlanmadan kapatıldı. Ödül kazanmak için sonuna kadar izlemelisiniz.'))
         }
       })
       
       rewardedAd.show()
     } else {
-      reject(new Error('Reklam henüz yüklenmedi, lütfen bekleyip tekrar deneyin.'))
+      // Eğer yüklenmediyse tekrar denemesini isteyelim ve yüklemeyi tetikleyelim
+      rewardedAd.load();
+      reject(new Error('Reklam henüz hazır değil. Lütfen birkaç saniye bekleyip tekrar deneyin. (İnternet bağlantınızı kontrol edin)'))
     }
   })
 }
