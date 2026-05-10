@@ -3,6 +3,9 @@
     "name": "Anatomi",
     "slug": "anatomi",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -35,6 +38,12 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-updates",
+        {
+          "username": "aliddari"
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-1645648125009801~4364181219",
@@ -42,6 +51,12 @@
         }
       ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/fc720731-13a1-4b23-b498-938587705665",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
+    },
     "extra": {
       "router": {},
       "eas": {

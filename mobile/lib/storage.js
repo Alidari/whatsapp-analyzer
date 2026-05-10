@@ -24,22 +24,33 @@ export async function getClientId() {
     return id
   }
 
-  // Native: Kalıcı Cihaz Kimliği
-  if (Platform.OS === 'android') {
-    return Application.androidId || 'unknown-android-id'
-  }
-  
-  if (Platform.OS === 'ios') {
+  // Native: Kalıcı Cihaz Kimliği (SecureStore'da saklanır)
+  // Not: Application.androidId Expo managed workflow'da null dönebilir,
+  // bu yüzden her cihaza benzersiz UUID üretip kalıcı olarak saklıyoruz.
+  try {
     let storedId = await SecureStore.getItemAsync(CLIENT_ID_KEY)
     if (!storedId) {
-      storedId = await Application.getIosIdForVendorAsync()
+      // Android'de önce androidId'yi dene, yoksa UUID üret
+      if (Platform.OS === 'android') {
+        storedId = Application.androidId || null
+      } else if (Platform.OS === 'ios') {
+        storedId = await Application.getIosIdForVendorAsync()
+      }
+      // Hiçbiri yoksa güvenli UUID üret
       if (!storedId) storedId = generateUUID()
       await SecureStore.setItemAsync(CLIENT_ID_KEY, storedId)
     }
     return storedId
+  } catch (e) {
+    // SecureStore erişilemezse AsyncStorage'a düş
+    console.warn('SecureStore erişilemedi, AsyncStorage kullanılıyor:', e)
+    let id = await AsyncStorage.getItem(CLIENT_ID_KEY)
+    if (!id) {
+      id = generateUUID()
+      await AsyncStorage.setItem(CLIENT_ID_KEY, id)
+    }
+    return id
   }
-  
-  return generateUUID()
 }
 
 export async function getJobId() {
@@ -68,7 +79,7 @@ export async function markOnboardingDone() {
 export async function clearAllData() {
   const keys = await AsyncStorage.getAllKeys()
   await AsyncStorage.multiRemove(keys)
-  if (Platform.OS === 'ios') {
-    await SecureStore.deleteItemAsync(CLIENT_ID_KEY)
+  if (Platform.OS !== 'web') {
+    try { await SecureStore.deleteItemAsync(CLIENT_ID_KEY) } catch {}
   }
 }
