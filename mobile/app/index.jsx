@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as DocumentPicker from 'expo-document-picker'
 import { Colors } from '../lib/colors'
@@ -13,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons'
 export default function IndexScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
-  const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
@@ -216,9 +214,7 @@ export default function IndexScreen() {
       </TouchableOpacity>
 
       {/* Bottom Banner */}
-      <View style={[styles.bannerContainer, { paddingBottom: insets.bottom }]}>
-        <AppBannerAd />
-      </View>
+      <AppBannerAd />
     </View>
   )
 }
@@ -342,11 +338,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.secondary,
     fontWeight: '600',
-  },
-  bannerContainer: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    alignItems: 'center',
   },
 })

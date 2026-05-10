@@ -22,13 +22,28 @@ const adUnitId = isTestMode ? TestIds.BANNER : 'ca-app-pub-1645648125009801/1821
 const interstitialId = isTestMode ? TestIds.INTERSTITIAL : TestIds.INTERSTITIAL // Gerçek ID gelene kadar test kalsın
 const rewardedId = isTestMode ? TestIds.REWARDED : 'ca-app-pub-1645648125009801/4265989191'
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Colors } from '../lib/colors'
+
 // ── BANNER AD ──
 export function AppBannerAd() {
   const { isSubscribed } = useSubscription()
+  const insets = useSafeAreaInsets()
   
   if (Platform.OS === 'web' || isSubscribed) return null; 
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}>
+    <View style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: insets.bottom + (Platform.OS === 'android' ? 10 : 0),
+      backgroundColor: Colors.background,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(255,255,255,0.05)',
+    }}>
       <BannerAd
         unitId={adUnitId}
         size={BannerAdSize.BANNER}

@@ -13,7 +13,7 @@ import { generateStorySlides } from '../lib/slides'
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
 
-function ExampleQuotes({ quotesList }) {
+function ExampleQuotes({ quotesList, userSender }) {
   const [modalVisible, setModalVisible] = useState(false)
   
   if (!quotesList || quotesList.length === 0) return null
@@ -62,11 +62,14 @@ function ExampleQuotes({ quotesList }) {
                 <View key={dIdx} style={styles.dialogueGroup}>
                   {dIdx > 0 && <View style={styles.dialogueDivider} />}
                   {dialogue.map((msg, idx) => {
-                    const isFirstSender = msg.sender === dialogue[0].sender
+                    const isUser = userSender ? msg.sender === userSender : msg.sender !== dialogue[0].sender;
+                    // Eğer userSender belliyse, user sağda (Right) olmalı, karşı taraf solda (Left) olmalı.
+                    // Yoksa eskisi gibi ilk kişi solda.
+                    const isRight = isUser;
                     return (
                       <View key={idx} style={[
                         styles.quoteBubble,
-                        isFirstSender ? styles.quoteBubbleLeft : styles.quoteBubbleRight
+                        isRight ? styles.quoteBubbleRight : styles.quoteBubbleLeft
                       ]}>
                         <Text style={styles.quoteSender}>
                           {msg.sender}
@@ -271,7 +274,7 @@ export default function StoriesScreen() {
                 </Text>
                 <Text style={styles.revealSubtitle}>{slide.subtitle}</Text>
 
-                <ExampleQuotes quotesList={slide.exampleQuote} />
+                <ExampleQuotes quotesList={slide.exampleQuote} userSender={analysisData?.user_sender} />
 
                 {/* Share Button (Hidden during capture if needed, but usually we want it visible or we use a separate hidden view) */}
                 {!isSharing && (

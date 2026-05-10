@@ -79,11 +79,41 @@ export default function HistoryScreen() {
     setLoadingId(id)
     try {
       const data = await getHistoryDetail(id)
-      // data.result ile geçiyoruz çünkü loading.jsx de öyle yapıyor, Dashboard buna göre bekliyor
-      router.push({
-        pathname: '/dashboard',
-        params: { data: JSON.stringify(data.result) },
-      })
+      const senders = data.result.parse_summary?.senders || [];
+      if (senders.length === 2 && !data.result.user_sender) {
+        Alert.alert(
+          "Sohbetteki Tarafını Seç",
+          "Örnek sohbet gösterimlerinde doğru tarafı göstermemiz için hangisi olduğunu seçer misin?",
+          [
+            { 
+              text: senders[0], 
+              onPress: () => { 
+                data.result.user_sender = senders[0]; 
+                router.push({
+                  pathname: '/dashboard',
+                  params: { data: JSON.stringify(data.result) },
+                })
+              } 
+            },
+            { 
+              text: senders[1], 
+              onPress: () => { 
+                data.result.user_sender = senders[1]; 
+                router.push({
+                  pathname: '/dashboard',
+                  params: { data: JSON.stringify(data.result) },
+                })
+              } 
+            }
+          ],
+          { cancelable: false }
+        )
+      } else {
+        router.push({
+          pathname: '/dashboard',
+          params: { data: JSON.stringify(data.result) },
+        })
+      }
     } catch (err) {
       Alert.alert('Hata', err.message)
     } finally {
@@ -259,7 +289,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   emptyWrap: {
     flex: 1,

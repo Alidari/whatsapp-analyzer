@@ -88,6 +88,7 @@ export default function DashboardScreen() {
   const weeklyValues = m.timeline?.weekly?.map(d => d.count) || []
 
   return (
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
     <ScrollView
       style={styles.scrollView}
       contentContainerStyle={styles.container}
@@ -338,12 +339,13 @@ export default function DashboardScreen() {
     </View>
     </ViewShot>
 
-      {/* Banner Reklam */}
-      <AppBannerAd />
-
-      {/* Footer padding */}
-      <View style={{ height: 40 }} />
+      {/* Footer padding for banner ad */}
+      <View style={{ height: 80 }} />
     </ScrollView>
+
+    {/* Banner Reklam — ScrollView dışında, ekranın altında */}
+    <AppBannerAd />
+  </View>
   )
 }
 

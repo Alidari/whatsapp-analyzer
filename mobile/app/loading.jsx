@@ -81,51 +81,72 @@ export default function LoadingScreen() {
             await clearJobId()
             setWaitingForAd(true)
             
-            if (isSubscribed) {
-              // Premium user: directly go to stories
-              router.replace({
-                pathname: '/stories',
-                params: { data: JSON.stringify(data.result) },
-              })
-              return
-            }
+            const proceed = () => {
+              if (isSubscribed) {
+                // Premium user: directly go to stories
+                router.replace({
+                  pathname: '/stories',
+                  params: { data: JSON.stringify(data.result) },
+                })
+                return
+              }
 
-            // Show alert for Rewarded Ad
-            Alert.alert(
-              "Analiz Tamamlandı! 🎉",
-              "Sohbet hikayeniz ve Wrapped sonuçlarınız hazır. Özelleştirilmiş raporunuzu şimdi görüntüleyebilirsiniz.",
-              [
-                { 
-                  text: 'Daha Sonra Sakla', 
-                  style: 'cancel',
-                  onPress: () => router.replace('/history') 
-                },
-                { 
-                  text: 'Sonuçları Gör', 
-                  onPress: async () => {
-                    try {
-                      const completed = await showRewardedAsync()
-                      if (completed) {
-                        await unlockHistory(data.result.analysis_id)
-                        router.replace({
-                          pathname: '/stories',
-                          params: { data: JSON.stringify(data.result) },
-                        })
-                      } else {
+              // Show alert for Rewarded Ad
+              Alert.alert(
+                "Analiz Tamamlandı! 🎉",
+                "Sohbet hikayeniz ve Wrapped sonuçlarınız hazır. Özelleştirilmiş raporunuzu şimdi görüntüleyebilirsiniz.",
+                [
+                  { 
+                    text: 'Daha Sonra Sakla', 
+                    style: 'cancel',
+                    onPress: () => router.replace('/history') 
+                  },
+                  { 
+                    text: 'Sonuçları Gör', 
+                    onPress: async () => {
+                      try {
+                        const completed = await showRewardedAsync()
+                        if (completed) {
+                          await unlockHistory(data.result.analysis_id)
+                          router.replace({
+                            pathname: '/stories',
+                            params: { data: JSON.stringify(data.result) },
+                          })
+                        } else {
+                          router.replace('/history')
+                        }
+                      } catch (e) {
+                        Alert.alert('Hata', e.message)
                         router.replace('/history')
                       }
-                    } catch (e) {
-                      Alert.alert('Hata', e.message)
-                      router.replace('/history')
-                    }
-                  } 
-                }
-              ]
-            )
+                    } 
+                  }
+                ]
+              )
+            }
+
+            const senders = data.result.parse_summary?.senders || [];
+            if (senders.length === 2) {
+              Alert.alert(
+                "Sohbetteki Tarafını Seç",
+                "Örnek sohbet gösterimlerinde doğru tarafı göstermemiz için hangisi olduğunu seçer misin?",
+                [
+                  { text: senders[0], onPress: () => { data.result.user_sender = senders[0]; proceed(); } },
+                  { text: senders[1], onPress: () => { data.result.user_sender = senders[1]; proceed(); } }
+                ],
+                { cancelable: false }
+              )
+            } else {
+              proceed()
+            }
           } else if (data.status === 'error' || data.status === 'not_found') {
             clearInterval(interval)
             await clearJobId()
-            router.replace('/')
+            if (data.error_detail) {
+              Alert.alert('Analiz Başarısız', data.error_detail, [{ text: 'Tamam', onPress: () => router.replace('/') }])
+            } else {
+              router.replace('/')
+            }
           }
         } catch (e) {
           // Ignore network blips

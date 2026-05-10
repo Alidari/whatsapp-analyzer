@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../lib/colors'
 import { deleteUserData } from '../lib/api'
 import { clearAllData } from '../lib/storage'
+import * as Updates from 'expo-updates'
 
 export default function SettingsScreen() {
   const router = useRouter()
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
 
         {/* Support Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Destek</Text>
+          <Text style={styles.sectionTitle}>Destek ve Sürüm</Text>
           
           <TouchableOpacity style={styles.item} onPress={openSupport}>
             <View style={styles.itemLeft}>
@@ -100,12 +101,52 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={Colors.outline} />
           </TouchableOpacity>
 
+          <TouchableOpacity 
+            style={styles.item} 
+            onPress={async () => {
+              if (__DEV__) {
+                Alert.alert("Bilgi", "Geliştirme modunda güncelleme kontrolü yapılamaz.");
+                return;
+              }
+              try {
+                setLoading(true);
+                const update = await Updates.checkForUpdateAsync();
+                if (update.isAvailable) {
+                  await Updates.fetchUpdateAsync();
+                  Alert.alert(
+                    "Güncelleme Hazır 🚀",
+                    "Yeni sürüm indirildi. Şimdi uygulamayı yeniden başlatmak ister misiniz?",
+                    [
+                      { text: "Sonra", style: "cancel" },
+                      { text: "Şimdi Başlat", onPress: () => Updates.reloadAsync() }
+                    ]
+                  );
+                } else {
+                  Alert.alert("Güncel ✨", "Uygulamanız şu an en son sürümde.");
+                }
+              } catch (e) {
+                Alert.alert("Hata", "Güncelleme kontrolü başarısız oldu: " + e.message);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            <View style={styles.itemLeft}>
+              <Ionicons name="cloud-download-outline" size={22} color={Colors.primary} />
+              <Text style={styles.itemText}>Güncellemeleri Denetle</Text>
+            </View>
+            {loading ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="chevron-forward" size={20} color={Colors.outline} />}
+          </TouchableOpacity>
+
           <View style={styles.item}>
             <View style={styles.itemLeft}>
               <Ionicons name="information-circle-outline" size={22} color={Colors.primary} />
               <Text style={styles.itemText}>Versiyon</Text>
             </View>
-            <Text style={styles.versionText}>2.0.0</Text>
+            <Text style={styles.versionText}>
+              2.0.0 {Updates.updateId ? `(${Updates.updateId.substring(0, 7)})` : ''}
+            </Text>
           </View>
         </View>
 
