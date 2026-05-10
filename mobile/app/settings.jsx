@@ -145,7 +145,7 @@ export default function SettingsScreen() {
               <Text style={styles.itemText}>Versiyon</Text>
             </View>
             <Text style={styles.versionText}>
-              2.0.0 {Updates.updateId ? `(${Updates.updateId.substring(0, 7)})` : ''}
+              1.0.0 {Updates.updateId ? `(${Updates.updateId.substring(0, 7)})` : ''}
             </Text>
           </View>
         </View>

@@ -16,6 +16,7 @@ import AnimatedBackground from './components/AnimatedBackground'
 import AnalysisHistory from './components/AnalysisHistory'
 import AdminPanel from './components/AdminPanel'
 import PrivacyPolicy from './components/PrivacyPolicy'
+import DataDeletion from './components/DataDeletion'
 
 // ──────────────────────────────────────────────
 //  Client ID — Anonim UUID yönetimi
@@ -58,6 +59,11 @@ function App() {
 
     if (window.location.pathname === '/privacy') {
       setActiveView('privacy')
+      return
+    }
+
+    if (window.location.pathname === '/delete-data') {
+      setActiveView('delete-data')
       return
     }
 
@@ -262,6 +268,16 @@ function App() {
         {activeView === 'privacy' && (
           <PrivacyPolicy 
             key="privacy"
+            onClose={() => {
+              window.history.replaceState(null, '', '/')
+              handleBackToLanding()
+            }}
+          />
+        )}
+
+        {activeView === 'delete-data' && (
+          <DataDeletion 
+            key="delete-data"
             onClose={() => {
               window.history.replaceState(null, '', '/')
               handleBackToLanding()

@@ -14,7 +14,7 @@ mobileAds()
 
 // Use test IDs for development OR if we want to test APK with test ads
 // Buradaki 'false' değerini APK'da gerçek reklam görmek istiyorsan elle true yapabilirsin
-const FORCE_TEST_ADS = true; 
+const FORCE_TEST_ADS = false; 
 
 const isTestMode = __DEV__ || FORCE_TEST_ADS;
 
