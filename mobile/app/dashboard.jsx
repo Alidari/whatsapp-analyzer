@@ -188,6 +188,33 @@ export default function DashboardScreen() {
         <StatRow label="❗ Ünlem Şampiyonu" value={m.argument_score.exclamation_champion} color={Colors.secondary} />
       </MetricCard>
 
+      {/* ═══ ÖZÜR ANALİZİ ═══ */}
+      <MetricCard>
+        <SectionBadge icon="🙏" label="Özür Analizi" color={Colors.secondary} />
+        {m.apology_analysis.ambassador === "Yok" ? (
+          <BigNumber value="Sıfır Özür" label="Kimseden çıt çıkmadı! 🤐" color={Colors.outline} />
+        ) : (
+          <>
+            <BigNumber 
+              value={m.apology_analysis.ambassador} 
+              label="En çok özür dileyen! 🕊️" 
+              color={Colors.primary} 
+            />
+            {senders.map(s => {
+              const ap = m.apology_analysis.per_sender[s]
+              return (
+                <StatRow 
+                  key={s}
+                  label={s} 
+                  value={`${ap.apology_count} kez özür / barış isteği`} 
+                  color={Colors.onSurface} 
+                />
+              )
+            })}
+          </>
+        )}
+      </MetricCard>
+
       {/* ═══ YANIT SÜRESİ ═══ */}
       <MetricCard>
         <SectionBadge icon="⚡" label="Yanıt Süreleri" color={Colors.secondary} />

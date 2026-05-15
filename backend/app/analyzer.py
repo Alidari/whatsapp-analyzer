@@ -61,12 +61,15 @@ TURKISH_STOPWORDS = {
     "yaa", "abi", "lan", "la", "lo", "le",
 }
 
-# Barış kelimeleri
+# Barış / Özür kelimeleri
 PEACE_PHRASES = [
-    "özür dilerim", "kusura bakma", "haklısın", "pardon", "affedersin",
-    "üzgünüm", "hata yaptım", "benim hatam", "sorry", "pişmanım",
-    "kırmak istemezdim", "alınma", "kalbini kırdıysam", "bilerek yapmadım",
-    "barışalım", "küsme",
+    "özür dilerim", "özür dilerimm", "özür dilerimmm", "özür dilerimmmm", "özür dilerimmmmm",
+    "kusura bakma", "kusura bakmayın", "kusura bakmayin", "kusura bakmaaa",
+    "haklısın", "haklisin", "pardon", "affedersin", "üzgünüm", "uzgunum", "hata yaptım", 
+    "benim hatam", "sorry", "pişmanım", "pismanim", "kırmak istemezdim", "alınma", 
+    "kalbini kırdıysam", "bilerek yapmadım", "barışalım", "barisalim", "küsme", "kusme",
+    "canım benim özür", "affet", "affet beni", "özür dilerim canım", "özür" , "özürr","özüürr",
+    "ozur dilerim", "özürr", "küsmeyelim", "barışalım", "barışalım mı"
 ]
 
 # Toksik / negatif kelimeler (Türkçe günlük dil)
@@ -545,41 +548,50 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
     }
 
 
-def analyze_peace_ambassador(df: pd.DataFrame) -> dict:
+def analyze_apology(df: pd.DataFrame) -> dict:
     """
-    Barış Elçisi — Kim daha çok özür diler, barış ister?
-
-    Döner: {
-        "ambassador": str,
-        "per_sender": { sender: { peace_count, phrases: [...] } }
-    }
+    Özür Analizi — Kim daha çok özür diler, barış ister?
     """
     text_df = df[~df["is_media"]].copy()
     senders = text_df["sender"].unique()
 
+    # Uzun olanların kısa olanları kapsayıp çift sayılmaması için uzunluğa göre sıralayalım
+    sorted_phrases = sorted(PEACE_PHRASES, key=len, reverse=True)
+
     per_sender = {}
     for sender in senders:
         s_df = text_df[text_df["sender"] == sender]
-        all_text = " ".join(s_df["message"].str.lower())
+        # Mesajları tek tek kontrol etmek daha sağlıklı (overlapping engellemek için)
+        messages = s_df["message"].str.lower().tolist()
 
         peace_count = 0
-        found_phrases = []
-        for phrase in PEACE_PHRASES:
-            count = all_text.count(phrase)
-            if count > 0:
-                peace_count += count
-                found_phrases.append({"phrase": phrase, "count": count})
+        phrase_stats = Counter()
 
-        found_phrases.sort(key=lambda x: x["count"], reverse=True)
+        for msg in messages:
+            temp_msg = msg
+            for phrase in sorted_phrases:
+                if phrase in temp_msg:
+                    occurrences = temp_msg.count(phrase)
+                    peace_count += occurrences
+                    phrase_stats[phrase] += occurrences
+                    # Sayılan kısmı sil ki alt kelimeler (örn: "özür dilerim") tekrar sayılmasın
+                    temp_msg = temp_msg.replace(phrase, " [OK] ")
+
         per_sender[sender] = {
-            "peace_count": peace_count,
-            "top_phrases": found_phrases[:5],
+            "apology_count": peace_count,
+            "top_phrases": [{"phrase": p, "count": c} for p, c in phrase_stats.most_common(5)],
         }
 
-    ambassador = max(per_sender, key=lambda s: per_sender[s]["peace_count"])
+    # Eğer hiç özür yoksa ambassador "Yok" olsun
+    total_apologies = sum(s["apology_count"] for s in per_sender.values())
+    if total_apologies == 0:
+        ambassador = "Yok"
+    else:
+        ambassador = max(per_sender, key=lambda s: per_sender[s]["apology_count"])
 
     return {
         "ambassador": ambassador,
+        "total_count": total_apologies,
         "per_sender": per_sender,
     }
 
@@ -1453,7 +1465,7 @@ def run_full_analysis(df: pd.DataFrame) -> dict[str, Any]:
         "general": analyze_general_stats(df),
         "vibe_check": analyze_vibe_check(df),
         "argument_score": analyze_argument_score(df),
-        "peace_ambassador": analyze_peace_ambassador(df),
+        "apology_analysis": analyze_apology(df),
         "streak": analyze_streak(df),
         "night_owl": analyze_night_owl(df),
         "response_times": analyze_response_times(df),

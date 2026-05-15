@@ -104,15 +104,19 @@ export function generateStorySlides(metrics) {
       subtitle: `${m.emoji_universe.emoji_champion} emoji şampiyonu! Nadir emojiler: ${m.emoji_universe.rare_emojis?.join('') || '🤷'}`,
     },
 
-    // ── 9: Barış Elçisi ──
+    // ── 9: Özür Analizi ──
     {
       question: 'Zor zamanlarda alttan alan ve kalp kırıklıklarını tamir eden barış elçisi sence kim?',
       gradient: ['#0b141b', '#006c54', '#570067', '#0b141b'],
-      icon: '🕊️',
-      badge: 'BARIŞ ELÇİSİ',
-      title: `${m.peace_ambassador.ambassador} barışın mimarı!`,
+      icon: '🙏',
+      badge: 'ÖZÜR ANALİZİ',
+      title: m.apology_analysis.ambassador === 'Yok' 
+        ? 'Bu sohbette hiç özür dilenmemiş! 🤐' 
+        : `${m.apology_analysis.ambassador} tam bir barış elçisi!`,
       titleAccent: Colors.primary,
-      subtitle: `${m.peace_ambassador.ambassador}, ${m.peace_ambassador.per_sender[m.peace_ambassador.ambassador]?.peace_count || 0} kez barışçıl ifade kullandı.`,
+      subtitle: m.apology_analysis.ambassador === 'Yok'
+        ? 'Siz hiç mi hata yapmazsınız, yoksa gururunuzdan mı ödün vermezsiniz? 🧐'
+        : `${m.apology_analysis.ambassador}, toplam ${m.apology_analysis.per_sender[m.apology_analysis.ambassador]?.apology_count || 0} kez özür / barış ifadesi kullandı. ✨`,
     },
 
     // ── 10: Gerginlik ──
