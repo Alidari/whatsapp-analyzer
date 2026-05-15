@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { CustomAlert as Alert } from './CustomAlert';
 import { BlurView } from 'expo-blur';
 import { Colors } from '../lib/colors';
 import { getPremiumSubscriptions, buySubscription, restorePurchases } from '../lib/subscription';

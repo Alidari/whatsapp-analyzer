@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { Alert, View, Text, StyleSheet, Animated } from 'react-native'
+import { View, Text, StyleSheet, Animated } from 'react-native'
+import { CustomAlert as Alert } from '../components/CustomAlert'
 import { useRouter } from 'expo-router'
 import { Colors } from '../lib/colors'
 import { checkJobStatus, unlockHistory } from '../lib/api'

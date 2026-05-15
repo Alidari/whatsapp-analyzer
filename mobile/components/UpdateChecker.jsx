@@ -14,8 +14,8 @@ import {
   Animated,
   Platform,
 } from 'react-native'
-import * as Updates from 'expo-updates'
 import { Colors } from '../lib/colors'
+// import * as Updates from 'expo-updates' (Moved to internal require to prevent crash)
 
 export default function UpdateChecker() {
   const [updateReady, setUpdateReady] = useState(false)
@@ -48,6 +48,7 @@ export default function UpdateChecker() {
 
     async function checkForUpdate() {
       try {
+        const Updates = require('expo-updates')
         const update = await Updates.checkForUpdateAsync()
 
         if (!update.isAvailable || !isMounted) return
@@ -77,6 +78,7 @@ export default function UpdateChecker() {
 
   const handleRestart = async () => {
     try {
+      const Updates = require('expo-updates')
       await Updates.reloadAsync()
     } catch (e) {
       console.error('Restart failed:', e)

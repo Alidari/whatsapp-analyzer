@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import {
-  View, Text, StyleSheet, TouchableOpacity, Alert,
+  View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, ScrollView, Switch, Linking
 } from 'react-native'
+import { CustomAlert as Alert } from '../components/CustomAlert'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../lib/colors'
 import { deleteUserData } from '../lib/api'
 import { clearAllData } from '../lib/storage'
-import * as Updates from 'expo-updates'
+// import * as Updates from 'expo-updates' (Moved to internal usage)
 
 export default function SettingsScreen() {
   const router = useRouter()
@@ -110,6 +111,7 @@ export default function SettingsScreen() {
               }
               try {
                 setLoading(true);
+                const Updates = require('expo-updates');
                 const update = await Updates.checkForUpdateAsync();
                 if (update.isAvailable) {
                   await Updates.fetchUpdateAsync();
@@ -118,7 +120,7 @@ export default function SettingsScreen() {
                     "Yeni sürüm indirildi. Şimdi uygulamayı yeniden başlatmak ister misiniz?",
                     [
                       { text: "Sonra", style: "cancel" },
-                      { text: "Şimdi Başlat", onPress: () => Updates.reloadAsync() }
+                      { text: "Şimdi Başlat", onPress: () => require('expo-updates').reloadAsync() }
                     ]
                   );
                 } else {
@@ -145,7 +147,7 @@ export default function SettingsScreen() {
               <Text style={styles.itemText}>Versiyon</Text>
             </View>
             <Text style={styles.versionText}>
-              1.0.0 {Updates.updateId ? `(${Updates.updateId.substring(0, 7)})` : ''}
+              1.0.0
             </Text>
           </View>
         </View>

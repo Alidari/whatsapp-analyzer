@@ -4,6 +4,8 @@ import { View } from 'react-native'
 import { Colors } from '../lib/colors'
 import { SubscriptionProvider } from '../components/SubscriptionContext'
 import UpdateChecker from '../components/UpdateChecker'
+import { CustomAlertRoot, customAlertRef } from '../components/CustomAlert'
+
 
 export default function RootLayout() {
   return (
@@ -18,6 +20,7 @@ export default function RootLayout() {
           }}
         />
         <UpdateChecker />
+        <CustomAlertRoot ref={customAlertRef} />
       </View>
     </SubscriptionProvider>
   )

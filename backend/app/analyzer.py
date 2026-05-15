@@ -373,7 +373,7 @@ def _is_aggressive_caps(message: str) -> bool:
 def analyze_argument_score(df: pd.DataFrame) -> dict:
     """
     Tartışma Skoru — Gerginlik endeksi.
-    Sinyal: Ardışık kısa mesajlar (spam), CAPS LOCK, çoklu !/? kullanımı.
+    Sinyal: Ardışık kısa mesajlar (spam), CAPS LOCK, çoklu !/? kullanımı + ML model duygu analizi.
 
     Döner: {
         "tension_index": float (0-100),
@@ -387,13 +387,51 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
     text_df = df[~df["is_media"]].copy()
     senders = text_df["sender"].unique()
 
+    pipeline_api = get_nlp_pipeline()
+
+    ml_negative_counts = {sender: 0 for sender in senders}
+    fallback_negative_counts = {sender: 0 for sender in senders}
+
+    if pipeline_api:
+        sample_size = min(len(text_df), 2000)
+        if sample_size > 0:
+            sample_df = text_df.groupby("sender", group_keys=False).apply(
+                lambda x: x.sample(n=min(len(x), max(1, sample_size // len(senders))), random_state=42)
+            ).copy()
+            
+            valid_mask = sample_df["message"].str.len() > 3
+            valid_df = sample_df[valid_mask].copy()
+            valid_msgs = valid_df["message"].tolist()
+            
+            if valid_msgs:
+                ml_results = pipeline_api(valid_msgs, truncation=True, max_length=128)
+                valid_df["ml_sentiment"] = [str(res["label"]).lower() for res in ml_results]
+                
+                for sender in senders:
+                    sender_sample = valid_df[valid_df["sender"] == sender]
+                    if len(sender_sample) > 0:
+                        neg_ratio = (sender_sample["ml_sentiment"] == "negative").mean()
+                        sender_total_msgs = len(text_df[text_df["sender"] == sender])
+                        ml_negative_counts[sender] = int(neg_ratio * sender_total_msgs)
+    else:
+        # Fallback sözlük yöntemi
+        messages = text_df["message"].astype(str).str.lower()
+        neg_emojis = ["😭", "😢", "😔", "😡", "🤬", "💔", "🙄", "😒", "🤢", "👎", "🫠", "🥱"]
+        neg_counts = pd.Series(0, index=messages.index)
+        for kw in NEGATIVE_KEYWORDS + neg_emojis:
+            neg_counts += messages.str.count(kw)
+        
+        text_df["fallback_neg_score"] = neg_counts
+        for sender in senders:
+            sender_df = text_df[text_df["sender"] == sender]
+            fallback_negative_counts[sender] = (sender_df["fallback_neg_score"] > 0).sum()
+
     per_sender = {}
     for sender in senders:
         s_df = text_df[text_df["sender"] == sender]
         total = len(s_df) or 1
 
-        # CAPS LOCK mesaj sayısı — bağlamsal, akıllı tespit
-        # "AŞKIM", "EVET AŞKMM", klavye dövmesi gibi yanlış pozitifleri eliyor
+        # CAPS LOCK mesaj sayısı
         caps_msgs = s_df["message"].apply(_is_aggressive_caps).sum()
 
         # Çoklu ünlem/soru işareti
@@ -401,8 +439,7 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
             lambda m: m.count("!") >= 2 or m.count("?") >= 3
         ).sum()
 
-        # Kısa ardışık mesajlar (spam burst): 3+ ardışık mesaj, her biri <15 karakter
-        # Vectorized hesaplama (iterrows çok yavaş büyük dosyalarda)
+        # Kısa ardışık mesajlar (spam burst)
         short_mask = s_df["char_count"].values < 15
         spam_count = 0
         consecutive = 0
@@ -414,11 +451,14 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
             else:
                 consecutive = 0
 
+        neg_count = ml_negative_counts[sender] if pipeline_api else fallback_negative_counts[sender]
+
         per_sender[sender] = {
             "caps_lock_count": int(caps_msgs),
             "caps_lock_pct": round(caps_msgs / total * 100, 1),
             "exclamation_count": int(excl_msgs),
             "spam_bursts": int(spam_count),
+            "negative_msgs_count": int(neg_count),
         }
 
     # Genel gerginlik endeksi (0-100)
@@ -426,11 +466,13 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
     total_caps = sum(s["caps_lock_count"] for s in per_sender.values())
     total_excl = sum(s["exclamation_count"] for s in per_sender.values())
     total_spam = sum(s["spam_bursts"] for s in per_sender.values())
+    total_neg = sum(s["negative_msgs_count"] for s in per_sender.values())
 
     tension_index = min(100, round(
         (total_caps / total_msgs * 200) +
         (total_excl / total_msgs * 150) +
-        (total_spam / total_msgs * 100),
+        (total_spam / total_msgs * 100) +
+        (total_neg / total_msgs * 100),
         1
     ))
 
@@ -444,18 +486,18 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
         tension_label = "Sakin Deniz 🌊"
 
     # Şampiyonlar
-    caps_lock_king = max(per_sender, key=lambda s: per_sender[s]["caps_lock_count"]) if per_sender else "Yok"
-    exclamation_champion = max(per_sender, key=lambda s: per_sender[s]["exclamation_count"]) if per_sender else "Yok"
+    caps_lock_king = max(per_sender, key=lambda s: per_sender[s]["caps_lock_count"]) if per_sender and sum(s["caps_lock_count"] for s in per_sender.values()) > 0 else "Yok"
+    exclamation_champion = max(per_sender, key=lambda s: per_sender[s]["exclamation_count"]) if per_sender and sum(s["exclamation_count"] for s in per_sender.values()) > 0 else "Yok"
 
     # Highlighted Quote for argument
     highlighted_quote = []
+    
     if caps_lock_king != "Yok":
         loud_msgs = text_df[
             (text_df["sender"] == caps_lock_king) & 
             (text_df["message"].apply(_is_aggressive_caps))
         ]
         
-        # Get up to 3 loud messages
         top_loud_indices = loud_msgs.index[:3]
         for idx in top_loud_indices:
             pos = df.index.get_loc(idx)
@@ -468,6 +510,29 @@ def analyze_argument_score(df: pd.DataFrame) -> dict:
                 else:
                     dialogue.append({"sender": row["sender"], "message": row["message"]})
             highlighted_quote.append(dialogue)
+    elif total_neg > 0:
+        if not pipeline_api and "fallback_neg_score" in text_df.columns:
+            toxic_msgs = text_df[text_df["fallback_neg_score"] > 0]
+        elif pipeline_api and "valid_df" in locals() and "ml_sentiment" in valid_df.columns:
+            toxic_msgs = valid_df[valid_df["ml_sentiment"] == "negative"]
+        else:
+            messages = text_df["message"].astype(str).str.lower()
+            neg_mask = messages.apply(lambda x: any(kw in x for kw in NEGATIVE_KEYWORDS))
+            toxic_msgs = text_df[neg_mask]
+            
+        if not toxic_msgs.empty:
+            top_toxic_indices = toxic_msgs.index[:3]
+            for idx in top_toxic_indices:
+                pos = df.index.get_loc(idx)
+                start = max(0, pos - 1)
+                end = min(len(df), pos + 2)
+                dialogue = []
+                for _, row in df.iloc[start:end].iterrows():
+                    if row["is_media"]:
+                        dialogue.append({"sender": row["sender"], "message": "[Medya]"})
+                    else:
+                        dialogue.append({"sender": row["sender"], "message": row["message"]})
+                highlighted_quote.append(dialogue)
 
     return {
         "tension_index": tension_index,
