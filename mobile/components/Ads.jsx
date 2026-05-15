@@ -14,7 +14,7 @@ mobileAds()
 
 // Use test IDs for development OR if we want to test APK with test ads
 // Buradaki 'false' değerini APK'da gerçek reklam görmek istiyorsan elle true yapabilirsin
-const FORCE_TEST_ADS = false; 
+const FORCE_TEST_ADS = true;
 
 const isTestMode = __DEV__ || FORCE_TEST_ADS;
 
@@ -29,8 +29,8 @@ import { Colors } from '../lib/colors'
 export function AppBannerAd() {
   const { isSubscribed } = useSubscription()
   const insets = useSafeAreaInsets()
-  
-  if (Platform.OS === 'web' || isSubscribed) return null; 
+
+  if (Platform.OS === 'web' || isSubscribed) return null;
   return (
     <View style={{
       position: 'absolute',
@@ -74,7 +74,7 @@ export function showInterstitialAsync() {
       resolve(true);
       return;
     }
-    
+
     if (interstitialAd.loaded) {
       const unsubscribeClosed = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
         unsubscribeClosed()
@@ -84,7 +84,7 @@ export function showInterstitialAsync() {
       interstitialAd.show()
     } else {
       console.log('Interstitial not loaded');
-      resolve(false) 
+      resolve(false)
     }
   })
 }
@@ -112,18 +112,18 @@ export function showRewardedAsync() {
       const unsubscribeEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, reward => {
         rewarded = true
       })
-      
+
       const unsubscribeClosed = rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
         unsubscribeEarned()
         unsubscribeClosed()
-        rewardedAd.load() 
+        rewardedAd.load()
         if (rewarded) {
           resolve(true)
         } else {
           reject(new Error('Reklam tamamlanmadan kapatıldı. Ödül kazanmak için sonuna kadar izlemelisiniz.'))
         }
       })
-      
+
       rewardedAd.show()
     } else {
       // Eğer yüklenmediyse tekrar denemesini isteyelim ve yüklemeyi tetikleyelim

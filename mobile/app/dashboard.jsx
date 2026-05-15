@@ -149,7 +149,32 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      {/* ═══ VIBE CHECK ═══ */}
+      {/* ═══ GRUP ÖDÜLLERİ (Sadece Gruplar İçin) ═══ */}
+      {m.group_dynamics?.is_group && (
+        <MetricCard>
+          <SectionBadge icon="🏆" label="Grup Ödülleri" color={Colors.primary} />
+          {Object.entries(m.group_dynamics.awards || {}).map(([key, award]) => (
+            <View key={key} style={styles.awardRow}>
+              <View style={styles.awardIcon}>
+                <Text style={{ fontSize: 24 }}>
+                  {key === 'quiet_one' ? '🤫' : 
+                   key === 'sticker_monster' ? '🖼️' : 
+                   key === 'ghost_king' ? '👻' : 
+                   key === 'spokesperson' ? '📢' : 
+                   key === 'night_owl' ? '🦉' : '🏅'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.awardTitle}>{award.title}</Text>
+                <Text style={styles.awardName}>{award.name}</Text>
+                <Text style={styles.awardDesc}>{award.desc}</Text>
+              </View>
+            </View>
+          ))}
+        </MetricCard>
+      )}
+
+      {/* ═══ VIBE CHECK (Gruplarda Daha Sade) ═══ */}
       <MetricCard>
         <SectionBadge icon="💕" label="Vibe Check" color={Colors.tertiary} />
         <BigNumber value={m.vibe_check.mood_label_tr} label="" color={Colors.primary} />
@@ -188,32 +213,34 @@ export default function DashboardScreen() {
         <StatRow label="❗ Ünlem Şampiyonu" value={m.argument_score.exclamation_champion} color={Colors.secondary} />
       </MetricCard>
 
-      {/* ═══ ÖZÜR ANALİZİ ═══ */}
-      <MetricCard>
-        <SectionBadge icon="🙏" label="Özür Analizi" color={Colors.secondary} />
-        {m.apology_analysis.ambassador === "Yok" ? (
-          <BigNumber value="Sıfır Özür" label="Kimseden çıt çıkmadı! 🤐" color={Colors.outline} />
-        ) : (
-          <>
-            <BigNumber 
-              value={m.apology_analysis.ambassador} 
-              label="En çok özür dileyen! 🕊️" 
-              color={Colors.primary} 
-            />
-            {senders.map(s => {
-              const ap = m.apology_analysis.per_sender[s]
-              return (
-                <StatRow 
-                  key={s}
-                  label={s} 
-                  value={`${ap.apology_count} kez özür / barış isteği`} 
-                  color={Colors.onSurface} 
-                />
-              )
-            })}
-          </>
-        )}
-      </MetricCard>
+      {/* ═══ ÖZÜR ANALİZİ (Gruplarda Gizle veya Kişi Bazlı Göster) ═══ */}
+      {!m.group_dynamics?.is_group && (
+        <MetricCard>
+          <SectionBadge icon="🙏" label="Özür Analizi" color={Colors.secondary} />
+          {m.apology_analysis.ambassador === "Yok" ? (
+            <BigNumber value="Sıfır Özür" label="Kimseden çıt çıkmadı! 🤐" color={Colors.outline} />
+          ) : (
+            <>
+              <BigNumber 
+                value={m.apology_analysis.ambassador} 
+                label="En çok özür dileyen! 🕊️" 
+                color={Colors.primary} 
+              />
+              {senders.map(s => {
+                const ap = m.apology_analysis.per_sender[s]
+                return (
+                  <StatRow 
+                    key={s}
+                    label={s} 
+                    value={`${ap.apology_count} kez özür / barış isteği`} 
+                    color={Colors.onSurface} 
+                  />
+                )
+              })}
+            </>
+          )}
+        </MetricCard>
+      )}
 
       {/* ═══ YANIT SÜRESİ ═══ */}
       <MetricCard>
@@ -346,16 +373,41 @@ export default function DashboardScreen() {
                 label={m.profanity.profanity_density_label}
                 color={Colors.error}
               />
+              
+              {/* Genel En Çok Edilen Küfürler */}
+              <View style={styles.topProfanitySection}>
+                <Text style={styles.topProfanityTitle}>En Çok Edilenler (Genel)</Text>
+                <View style={styles.profanityChipRow}>
+                  {(m.profanity.top_5_overall || []).map((p, i) => (
+                    <View key={i} style={styles.profanityChip}>
+                      <Text style={styles.profanityChipText}>{p.word}</Text>
+                      <Text style={styles.profanityChipCount}>x{p.count}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
               {senders.map(s => {
                 const pd = m.profanity.per_sender?.[s]
-                if (!pd) return null
+                if (!pd || pd.profanity_count === 0) return null
                 return (
-                  <StatRow
-                    key={s}
-                    label={`${s}`}
-                    value={`${pd.profanity_count} küfür (${pd.density_label})`}
-                    color={pd.profanity_count > 0 ? Colors.error : Colors.primary}
-                  />
+                  <View key={s} style={{ marginBottom: 16 }}>
+                    <StatRow
+                      label={`${s}`}
+                      value={`${pd.profanity_count} küfür (${pd.density_label})`}
+                      color={Colors.error}
+                    />
+                    <View style={[styles.profanityChipRow, { marginTop: 4 }]}>
+                      {(pd.top_profanities || []).map((p, i) => (
+                        <View key={i} style={[styles.profanityChip, { backgroundColor: Colors.surfaceContainerHighest }]}>
+                          <Text style={[styles.profanityChipText, { fontSize: 10 }]}>{p.word}</Text>
+                          <Text style={[styles.profanityChipCount, { fontSize: 9 }]}>x{p.count}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
                 )
               })}
             </>
@@ -562,5 +614,86 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+  awardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 20,
+    backgroundColor: Colors.surfaceContainer,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant + '30',
+  },
+  awardIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primaryContainer + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  awardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  awardName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.onSurface,
+    marginBottom: 4,
+  },
+  awardDesc: {
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+    lineHeight: 18,
+  },
+  topProfanitySection: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 16,
+  },
+  topProfanityTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.onSurfaceVariant,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  profanityChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  profanityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.error + '20',
+  },
+  profanityChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.error,
+    marginRight: 4,
+  },
+  profanityChipCount: {
+    fontSize: 10,
+    color: Colors.error + '80',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.outlineVariant + '20',
+    marginVertical: 16,
   },
 })

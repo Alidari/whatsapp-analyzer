@@ -1323,6 +1323,8 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
         "sıkıldı", "sikildi"
     }
 
+    global_profanity_counter = Counter()
+
     for sender in senders:
         s_df = text_df[text_df["sender"] == sender]
         total_words = int(s_df["word_count"].sum()) or 1
@@ -1339,9 +1341,6 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
                     if m_lower in FALSE_POSITIVES:
                         continue
                     if m_lower.startswith(("sıkın", "sikin", "sıkıl", "sikil", "sıkıc", "sikic", "sıkıy", "sikiy", "sıkm", "sikm", "sıkışt", "sikist", "sıkça", "sikca", "sıkı", "siki")):
-                        # Eğer direkt "sik" veya "sikiş" vs ise küfür olabilir, ama "siki" ile başlayan masum kelimeler çok az.
-                        # "sik" -> 3 harf. "siki" -> 4 harf. "sikinti" -> 7 harf.
-                        # We allow exact "sik" to pass since startswith("siki") needs at least 4 letters.
                         if m_lower in ["sik", "sikiş", "sikişmek", "sikmek", "sikik"]:
                             pass # let it count
                         else:
@@ -1349,6 +1348,7 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
                     
                     profanity_count += 1
                     profanity_counter[m_lower] += 1
+                    global_profanity_counter[m_lower] += 1
 
         total_profanity += profanity_count
 
@@ -1367,20 +1367,16 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
         else:
             density_label = "Ağız sabunlanmalı 🧼"
 
-        top_profanities = []
-        for w, c in profanity_counter.most_common(5):
+        def censor_word(w):
             word_len = len(w)
-            censored = w
             if word_len >= 4:
-                # Censor middle 2 letters
                 mid = word_len // 2
-                censored = w[:mid-1] + '**' + w[mid+1:]
+                return w[:mid-1] + '**' + w[mid+1:]
             elif word_len == 3:
-                censored = w[0] + '*' + w[2]
-            else:
-                censored = w[0] + '*' * (word_len - 1)
-            
-            top_profanities.append({"word": censored, "count": c})
+                return w[0] + '*' + w[2]
+            return w[0] + '*' * (word_len - 1)
+
+        top_profanities = [{"word": censor_word(w), "count": c} for w, c in profanity_counter.most_common(5)]
 
         per_sender[sender] = {
             "profanity_count": profanity_count,
@@ -1405,12 +1401,16 @@ def analyze_profanity(df: pd.DataFrame) -> dict:
         words_per_profanity = int(total_words_all / max(total_profanity, 1))
         overall_density = f"Her {words_per_profanity} kelimeden 1'i küfür 🤭"
 
+    # Overall top 5
+    top_5_overall = [{"word": censor_word(w), "count": c} for w, c in global_profanity_counter.most_common(5)]
+
     return {
         "profanity_champion": profanity_champion,
         "total_profanity": total_profanity,
         "overall_rate_per_100": overall_rate,
         "profanity_density_label": overall_density,
         "per_sender": per_sender,
+        "top_5_overall": top_5_overall,
     }
 
 

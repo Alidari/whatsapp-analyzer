@@ -8,8 +8,109 @@ export function generateStorySlides(metrics) {
   const m = metrics
   const g = m.general
   const senders = g.senders
+  const isGroup = m.group_dynamics?.is_group
 
+  if (isGroup) {
+    const gd = m.group_dynamics
+    const awards = gd.awards || {}
+
+    return [
+      // ── 1: Grup Genel Bakış ──
+      {
+        question: 'Bu kalabalık grupta neler dönmüş merak ediyor musun? 🧐',
+        gradient: ['#0b141b', '#006c54', '#004d3d'],
+        icon: '👥',
+        badge: 'GRUP ANALİZİ',
+        title: `${g.total_messages.toLocaleString('tr-TR')} mesajla ortalık yıkılmış!`,
+        titleAccent: Colors.primary,
+        subtitle: `Bu grupta tam ${senders.length} kişi var. ${g.date_range.days_span} gündür durmadan yazışıyorsunuz.`,
+      },
+
+      // ── 2: Liderlik Tablosu ──
+      {
+        question: 'Grupta en çok kimin borusu ötüyor? İşte mesaj şampiyonları!',
+        gradient: ['#0b141b', '#570067', '#350040'],
+        icon: '👑',
+        badge: 'LİDERLİK TABLOSU',
+        title: `Grup Lideri: ${gd.leaderboard?.[0]?.name || ''}`,
+        titleAccent: Colors.tertiary,
+        subtitle: gd.leaderboard?.slice(0, 5).map((l, i) => `${i+1}. ${l.name} (${l.count} mesaj)`).join('\n') || '',
+      },
+
+      // ── 3: Sticker Canavarı ──
+      awards.sticker_monster ? {
+        question: 'Kelimeler yetmeyince grupta sticker savaşı başlatan o kişi...',
+        gradient: ['#0b141b', '#0369a1', '#082f49'],
+        icon: '🖼️',
+        badge: 'STICKER CANAVARI',
+        title: `${awards.sticker_monster.name} sticker atmaktan yazmaya vakit bulamıyor!`,
+        titleAccent: Colors.primary,
+        subtitle: `${awards.sticker_monster.count} sticker ile grubun görsel yönetmeni seçildi.`,
+      } : null,
+
+      // ── 4: Görülmedi Kralı ──
+      awards.ghost_king ? {
+        question: 'Attığı mesajla grubu buz kestiren, derin sessizliklere yol açan o arkadaş...',
+        gradient: ['#0b141b', '#93000a', '#690005'],
+        icon: '👻',
+        badge: 'GÖRÜLMEDİ KRALI',
+        title: `${awards.ghost_king.name} grupta 'Ghost' takılıyor!`,
+        titleAccent: Colors.error,
+        subtitle: `Tam ${awards.ghost_king.count} kez attığı mesajdan sonra saatlerce kimseden ses çıkmadı. Hayırdır?`,
+      } : null,
+
+      // ── 5: Ağzı Var Dili Yok ──
+      awards.quiet_one ? {
+        question: 'Grupta olup olmadığını unuttuğumuz, sadece izleyen o gizemli üye...',
+        gradient: ['#0b141b', '#006c54', '#004d3d'],
+        icon: '🤫',
+        badge: 'AĞZI VAR DİLİ YOK',
+        title: `${awards.quiet_one.name} tam bir sessiz izleyici!`,
+        titleAccent: Colors.primary,
+        subtitle: `Koca grupta sadece ${awards.quiet_one.count} mesajı var. Varlığıyla huzur veriyor!`,
+      } : null,
+
+       // ── 6: Küfürbaz (Eğer varsa) ──
+       awards.kufurbaz_haydo ? {
+        question: 'Grupta ağzının ayarı pek olmayan o arkadaşımız...',
+        gradient: ['#0b141b', '#93000a', '#690005'],
+        icon: '🤬',
+        badge: 'KÜFÜRBAZ HAYDO',
+        title: `Ödülün sahibi: ${awards.kufurbaz_haydo.name}`,
+        titleAccent: Colors.error,
+        subtitle: `Tam ${awards.kufurbaz_haydo.count} küfürle grubun en 'dobra' üyesi oldu. Sabun getirin!`,
+      } : null,
+
+      // ── 7: Favori Kelimeler ──
+      {
+        question: 'Bu grubun ağzına pelesenk olmuş o meşhur kelimeler...',
+        gradient: ['#0b141b', '#0369a1', '#082f49'],
+        icon: '📝',
+        badge: 'GRUP LUGATI',
+        title: `En çok: "${m.word_cloud?.combined?.[0]?.word || '?'}"`,
+        titleAccent: Colors.secondary,
+        subtitle: (() => {
+          const top3 = m.word_cloud?.combined?.slice(0, 3) || []
+          return `Grupta en popüler 3 kelime: ${top3.map(w => `"${w.word}"`).join(', ')}`
+        })(),
+      },
+
+      // ── 8: Toplam Mesafe ──
+      {
+        question: 'Eğer bu grubun tüm yazışmalarını bir kitap yapsaydınız...',
+        gradient: ['#0b141b', '#570067', '#350040'],
+        icon: '📖',
+        badge: 'DESTAN GİBİ',
+        title: `Tam ${g.book_equivalent_pages} sayfalık bir roman çıkar!`,
+        titleAccent: Colors.tertiary,
+        subtitle: `Bu grupta toplam ${g.total_words.toLocaleString('tr-TR')} kelime tüketildi. Bir ömürlük muhabbet!`,
+      },
+    ].filter(Boolean)
+  }
+
+  // ── 2 KİŞİLİK (PAIR) MODU (Mevcut mantık) ──
   return [
+    // ... (existing code for pairs)
     // ── 1: Genel Bakış ──
     {
       question: 'Bu zamana kadar aranızda ne kadar büyük bir tarih yattığını merak ettin mi?',
@@ -159,12 +260,18 @@ export function generateStorySlides(metrics) {
         if (m.profanity.total_profanity === 0) {
           return 'Ne kadar kibar insanlarsınız! ✨'
         }
+        const top3 = (m.profanity.top_5_overall || []).slice(0, 3)
+        const top3Str = top3.length > 0 
+          ? `En çok: ${top3.map(p => `"${p.word}" (${p.count}x)`).join(', ')}.` 
+          : ''
+          
         const entries = Object.entries(m.profanity.per_sender || {})
-        const details = entries.map(([s, d]) => {
+        const details = entries.filter(([_, d]) => d.profanity_count > 0).map(([s, d]) => {
           const topWord = d.top_profanities?.[0]?.word || ''
           return `${s}: ${d.profanity_count} küfür` + (topWord ? ` (Favorisi: "${topWord}")` : '')
         }).join(' • ')
-        return `Toplam ${m.profanity.total_profanity} küfür. ${details}`
+        
+        return `${top3Str} ${details}`
       })(),
     }] : []),
 
