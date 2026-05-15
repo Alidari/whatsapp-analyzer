@@ -184,7 +184,8 @@ export async function earnQuota() {
     method: 'POST',
     headers: h,
   })
-  return resp.ok
+  if (!resp.ok) throw new Error('Hak eklenemedi.')
+  return true
 }
 
 export async function unlockHistory(analysisId) {

@@ -250,8 +250,11 @@ def check_quota(client_id: str) -> bool:
         quota = _get_or_create_quota(session, client_id)
         session.commit()
         if quota.is_subscribed:
+            print(f"DEBUG: Quota for {client_id}: SUBSCRIBED")
             return True
-        return quota.daily_scans_used < quota.max_scans_today
+        allowed = quota.daily_scans_used < quota.max_scans_today
+        print(f"DEBUG: Quota for {client_id}: {quota.daily_scans_used}/{quota.max_scans_today} used. Allowed: {allowed}")
+        return allowed
     finally:
         session.close()
 
@@ -271,8 +274,10 @@ def earn_quota(client_id: str):
     session = _get_session()
     try:
         quota = _get_or_create_quota(session, client_id)
+        old_max = quota.max_scans_today
         quota.max_scans_today += 1
         session.commit()
+        print(f"DEBUG: Quota for {client_id} INCREASED from {old_max} to {quota.max_scans_today}")
     finally:
         session.close()
 

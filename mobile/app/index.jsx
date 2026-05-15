@@ -9,10 +9,12 @@ import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId, hasSeenOnboarding } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
 import { Ionicons } from '@expo/vector-icons'
+import { useSubscription } from '../components/SubscriptionContext'
 
 export default function IndexScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
+  const { checkSubscription, quota } = useSubscription()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
@@ -103,13 +105,13 @@ export default function IndexScreen() {
       }
     } catch (err) {
       console.error('API Send Error: ', err)
-      handleApiError(err, uri, name, fileObj)
+      handleApiError(err, uri, name, fileObj, mimeType)
     } finally {
       setUploading(false)
     }
   }
 
-  const handleApiError = (err, uri, name, fileObj) => {
+  const handleApiError = (err, uri, name, fileObj, mimeType) => {
     if (err.message === 'LIMIT_REACHED') {
       Alert.alert(
         "Limit Doldu 🔒",
@@ -123,11 +125,16 @@ export default function IndexScreen() {
                 setUploading(true)
                 const completed = await showRewardedAsync()
                 if (completed) {
-                  await earnQuota()
-                  await checkSubscription() // Refresh quota display
-                  Alert.alert('Tebrikler!', 'Yeni bir analiz hakkı kazandınız.', [
-                    { text: 'Tekrar Dene', onPress: () => sendFile(uri, name, fileObj) }
-                  ])
+                  setUploading(true)
+                  try {
+                    await earnQuota()
+                    await checkSubscription() // Refresh quota display
+                    Alert.alert('Tebrikler!', 'Yeni bir analiz hakkı kazandınız.', [
+                      { text: 'Tekrar Dene', onPress: () => sendFile(uri, name, fileObj, mimeType) }
+                    ])
+                  } catch (err) {
+                    Alert.alert('Hata', 'Hak tanımlanamadı: ' + err.message)
+                  }
                 }
               } catch (e) {
                 Alert.alert('Hata', e.message)
@@ -165,6 +172,14 @@ export default function IndexScreen() {
 
       {/* Logo */}
       <Text style={styles.logo}>Anatomi</Text>
+
+      {/* Quota Badge */}
+      <View style={styles.quotaBadge}>
+        <Ionicons name="flash-outline" size={14} color={Colors.primary} />
+        <Text style={styles.quotaText}>
+          Günlük Kalan: {quota.max - quota.used} / {quota.max}
+        </Text>
+      </View>
 
       {/* Hero */}
       <Text style={styles.title}>
