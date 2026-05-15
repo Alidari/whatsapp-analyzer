@@ -43,6 +43,7 @@ class UserQuota(Base):
     max_scans_today = Column(Integer, default=1)
     lifetime_scans = Column(Integer, default=0)
     is_subscribed = Column(Integer, default=0) # 0 = No, 1 = Yes
+    push_token = Column(String(255), nullable=True)  # Expo push notification token
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Analysis(Base):
@@ -97,7 +98,7 @@ def init_db():
     engine = _get_engine()
     Base.metadata.create_all(bind=engine)
     
-    # Simple migration for is_unlocked
+    # Simple migrations
     with engine.begin() as conn:
         try:
             conn.execute(text("ALTER TABLE analyses ADD COLUMN is_unlocked INTEGER DEFAULT 0"))
@@ -107,6 +108,10 @@ def init_db():
             conn.execute(text("ALTER TABLE user_quotas ADD COLUMN is_subscribed INTEGER DEFAULT 0"))
         except Exception as e:
             print(f"ℹ️ Migration (is_subscribed) skipped or failed: {e}")
+        try:
+            conn.execute(text("ALTER TABLE user_quotas ADD COLUMN push_token TEXT"))
+        except Exception as e:
+            print(f"ℹ️ Migration (push_token) skipped or failed: {e}")
             
     print(f"✅ Veritabanı hazır: {DB_PATH}")
 
@@ -288,6 +293,27 @@ def update_subscription(client_id: str, is_subscribed: bool):
         quota = _get_or_create_quota(session, client_id)
         quota.is_subscribed = 1 if is_subscribed else 0
         session.commit()
+    finally:
+        session.close()
+
+
+def save_push_token(client_id: str, token: str):
+    """Kullanıcının Expo push token'ını kaydeder."""
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        quota.push_token = token
+        session.commit()
+    finally:
+        session.close()
+
+
+def get_push_token(client_id: str) -> Optional[str]:
+    """Kullanıcının push token'ını döner."""
+    session = _get_session()
+    try:
+        quota = session.query(UserQuota).filter(UserQuota.client_id == client_id).first()
+        return quota.push_token if quota else None
     finally:
         session.close()
 

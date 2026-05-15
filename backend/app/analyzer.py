@@ -1266,7 +1266,8 @@ PROFANITY_WORDS = [
     "bok", "boktan", "sik", "am",
     "pezevenk", "kodumun", "kahpe", "ibne", "gavat",
     "hassiktir", "hssktr", "hay amk", "lan amk", "ulan",
-    "sg", "s.g", "s2m", "s2ş", "skrm", "amcık","s2k"
+    "sg", "s.g", "s2m", "s2ş", "skrm", "amcık","s2k","buramcık","alpipi",
+    "yarram","yarrağım","amınakoim","amkmetal","amkm"
 ]
 
 # Daha gevşek regex pattern'leri (kısaltma varyasyonları)
@@ -1452,6 +1453,90 @@ def analyze_timeline(df: pd.DataFrame) -> dict:
     }
 
 
+def analyze_group_dynamics(df: pd.DataFrame) -> dict:
+    """
+    Grup Sohbet Analizi — Grup üyeleri arasındaki dinamikler ve ödüller.
+    """
+    senders = df["sender"].unique()
+    is_group = len(senders) > 2
+    
+    if not is_group:
+        return {"is_group": False}
+
+    # 1. Mesaj Sayıları & Liderlik Tablosu
+    msg_counts = df["sender"].value_counts()
+    leaderboard = []
+    for name, count in msg_counts.head(10).items():
+        leaderboard.append({"name": name, "count": int(count)})
+
+    # 2. Ödüller (Awards)
+    awards = {}
+
+    # A. Ağzı Var Dili Yok (En az konuşan)
+    least_talkative = msg_counts.idxmin()
+    awards["quiet_one"] = {
+        "name": least_talkative,
+        "title": "Ağzı Var Dili Yok",
+        "desc": "Grupta varlığıyla yokluğu bir, sessiz sakin bir arkadaşımız.",
+        "count": int(msg_counts.min())
+    }
+
+    # B. Sticker Canavarı
+    sticker_df = df[df["is_media"]]
+    if not sticker_df.empty:
+        sticker_counts = sticker_df["sender"].value_counts()
+        monster = sticker_counts.idxmax()
+        awards["sticker_monster"] = {
+            "name": monster,
+            "title": "Sticker Canavarı",
+            "desc": "Kelimeler yetmeyince stickerlara sarılan grubun görsel sanatçısı.",
+            "count": int(sticker_counts.max())
+        }
+
+    # C. Görülmedi Kralı (Ghosted King)
+    # Mesajından sonra en az 3 saat sessizlik olan mesajların sahibi
+    df_sorted = df.sort_values("datetime")
+    df_sorted["next_gap"] = df_sorted["datetime"].shift(-1) - df_sorted["datetime"]
+    ghost_msgs = df_sorted[df_sorted["next_gap"] > pd.Timedelta(hours=3)]
+    if not ghost_msgs.empty:
+        ghost_counts = ghost_msgs["sender"].value_counts()
+        king = ghost_counts.idxmax()
+        awards["ghost_king"] = {
+            "name": king,
+            "title": "Görülmedi Kralı",
+            "desc": "Attığı mesajlar grupta derin bir sessizliğe yol açıyor. Acaba neden?",
+            "count": int(ghost_counts.max())
+        }
+
+    # D. Grup Sözcüsü (En çok kelime kullanan - toplamda)
+    word_counts = df.groupby("sender")["word_count"].sum()
+    spokesperson = word_counts.idxmax()
+    awards["spokesperson"] = {
+        "name": spokesperson,
+        "title": "Grup Sözcüsü",
+        "desc": "Maşallah, grubu tek başına sırtlayan, her konuda fikri olan kişi.",
+        "count": int(word_counts.max())
+    }
+
+    # E. Gece Kuşu (Gece 00-06 arası en aktif)
+    night_df = df[(df["hour"] >= 0) & (df["hour"] <= 5)]
+    if not night_df.empty:
+        night_counts = night_df["sender"].value_counts()
+        night_owl = night_counts.idxmax()
+        awards["night_owl"] = {
+            "name": night_owl,
+            "title": "Gece Kuşu",
+            "desc": "Herkes uyurken o grupta nöbet tutuyor.",
+            "count": int(night_counts.max())
+        }
+
+    return {
+        "is_group": True,
+        "leaderboard": leaderboard,
+        "awards": awards
+    }
+
+
 # ══════════════════════════════════════════════
 #  ANA ANALİZ ORKESTRATÖRÜ
 # ══════════════════════════════════════════════
@@ -1461,6 +1546,19 @@ def run_full_analysis(df: pd.DataFrame) -> dict[str, Any]:
     Tüm metrikleri hesaplar ve tek bir JSON-ready dict döner.
     Bu fonksiyon API endpoint'i tarafından çağrılır.
     """
+    # Temel analizler
+    profanity_res = analyze_profanity(df)
+    group_dynamics = analyze_group_dynamics(df)
+    
+    # Küfürbaz Haydo ödülünü group_dynamics'e ekle
+    if group_dynamics.get("is_group") and profanity_res:
+        group_dynamics["awards"]["kufurbaz_haydo"] = {
+            "name": profanity_res["profanity_champion"],
+            "title": "Küfürbaz Haydo",
+            "desc": "Ağzı biraz bozuk ama olsun, samimiyetine inanıyoruz.",
+            "count": profanity_res["per_sender"].get(profanity_res["profanity_champion"], {}).get("profanity_count", 0)
+        }
+
     return {
         "general": analyze_general_stats(df),
         "vibe_check": analyze_vibe_check(df),
@@ -1475,6 +1573,7 @@ def run_full_analysis(df: pd.DataFrame) -> dict[str, Any]:
         "timeline": analyze_timeline(df),
         "routines": analyze_routines_and_initiators(df),
         "word_quirks": analyze_word_quirks(df),
-        "profanity": analyze_profanity(df),
+        "profanity": profanity_res,
+        "group_dynamics": group_dynamics,
     }
 

@@ -12,14 +12,17 @@ Endpoints:
   DELETE /api/history/{id}      — Belirli analizi siler
   PATCH /api/history/{id}/rename — Analiz adını değiştirir
   GET  /api/has-history         — Kullanıcının geçmişi var mı kontrol eder
+  POST /api/push-token          — Expo push token kaydeder
 """
 
+import asyncio
 import time
 import uuid
 import traceback
 from typing import Dict
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header, Request
+import httpx
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
@@ -36,16 +39,21 @@ from .database import (
     init_db, save_analysis, get_history, get_analysis_detail,
     delete_analysis, rename_analysis, has_history, compute_chat_hash,
     check_quota, use_quota, earn_quota, unlock_history, get_admin_stats,
-    update_subscription, _get_or_create_quota, _get_session, delete_user_data
+    update_subscription, _get_or_create_quota, _get_session, delete_user_data,
+    save_push_token, get_push_token
 )
 
 # ──────────────────────────────────────────────
-#  Job Queue (In-Memory)
+#  Global Job Store + Async Queue
 # ──────────────────────────────────────────────
 
-# jobs dict stores the status of analysis jobs.
-# Format: { "job_id": { "status": "processing" | "completed" | "error", "result": dict, "error_detail": str } }
+# jobs dict: { job_id: { status, result, error_detail, client_id, queued_at, position } }
 jobs: Dict[str, dict] = {}
+
+# Async iş kuyruğu — startup'ta başlatma sırasında oluşturulacak
+_job_queue: asyncio.Queue = None
+
+MAX_WORKERS = 2  # Aynı anda max kaç analiz yapılsın
 
 # ──────────────────────────────────────────────
 #  FastAPI Uygulaması
@@ -62,12 +70,18 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ──────────────────────────────────────────────
-#  Startup Event — DB tablolarını oluştur
+#  Startup Event — DB tablolarını oluştur + worker'ları başlat
 # ──────────────────────────────────────────────
 
 @app.on_event("startup")
 async def startup_event():
+    global _job_queue
     init_db()
+    _job_queue = asyncio.Queue()
+    # MAX_WORKERS kadar arka plan worker başlat
+    for i in range(MAX_WORKERS):
+        asyncio.create_task(analysis_worker(f"worker-{i}"))
+    print(f"✅ {MAX_WORKERS} analiz worker'i başlatıldı")
 
 # ──────────────────────────────────────────────
 #  CORS Yapılandırması
@@ -157,24 +171,91 @@ class RenameRequest(BaseModel):
 
 
 # ──────────────────────────────────────────────
-#  Background Task Fonksiyonu
+#  Expo Push Notification
 # ──────────────────────────────────────────────
 
-def process_analysis_job(job_id: str, content: str, client_id: str, file_size: int):
-    start_time = time.time()
+async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
+    """Expo Push Notification API ile bildirim gönderir."""
+    if not push_token or not push_token.startswith("ExponentPushToken"):
+        return
     try:
-        # Parsing phase
+        payload = {
+            "to": push_token,
+            "title": title,
+            "body": body,
+            "sound": "default",
+            "data": data or {},
+            "priority": "high",
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://exp.host/--/api/v2/push/send",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            print(f"🔔 Push notification sent to {push_token[:30]}... -> {resp.status_code}")
+    except Exception as e:
+        print(f"⚠️ Push notification failed: {e}")
+
+
+# ──────────────────────────────────────────────
+#  Async Queue Worker
+# ──────────────────────────────────────────────
+
+def _queue_position(job_id: str) -> int:
+    """Kuyruktaki job'un sıra numarasını hesaplar (1-basalı)."""
+    queued = [jid for jid, j in jobs.items() if j.get("status") == "queued"]
+    try:
+        return queued.index(job_id) + 1
+    except ValueError:
+        return 0
+
+
+async def analysis_worker(name: str):
+    """Sürekli çalışan arka plan worker. Kuyruktan job alır ve işler."""
+    print(f"💡 {name} started")
+    while True:
+        job_id, content, client_id, file_size = await _job_queue.get()
+        try:
+            await run_analysis_job(job_id, content, client_id, file_size)
+        except Exception as e:
+            traceback.print_exc()
+            jobs[job_id] = {
+                "status": "error",
+                "client_id": client_id,
+                "error_detail": f"Worker hatası: {str(e)}"
+            }
+        finally:
+            _job_queue.task_done()
+
+
+async def run_analysis_job(job_id: str, content: str, client_id: str, file_size: int):
+    """Async analiz işi — thread pool'da çalışır."""
+    import concurrent.futures
+    loop = asyncio.get_running_loop()
+    start_time = time.time()
+
+    try:
+        # Parsing phase (thread-pool'da CPU-bound)
         jobs[job_id]["status"] = "processing_parsing"
-        df = parse_whatsapp_chat(content)
+        df = await loop.run_in_executor(None, parse_whatsapp_chat, content)
         
+        # Mesaj sayısını kaydet (tahmin için)
+        msg_count = len(df) if not df.empty else 0
+        jobs[job_id]["message_count"] = msg_count
+
+        # Grup mu kontrol et
+        is_group = df['sender'].nunique() > 2 if not df.empty else False
+        jobs[job_id]["is_group"] = is_group
+
         # ML Analysis phase
         jobs[job_id]["status"] = "processing_nlp"
-        results = run_full_analysis(df)
-        
+        results = await loop.run_in_executor(None, run_full_analysis, df)
+
         elapsed = round(time.time() - start_time, 2)
         parse_summary = get_parse_summary(df)
 
-        # DB'ye kaydet (sanitized)
+        # DB'ye kaydet
         chat_hash = compute_chat_hash(content)
         analysis_id = None
         if client_id:
@@ -191,9 +272,9 @@ def process_analysis_job(job_id: str, content: str, client_id: str, file_size: i
             except Exception as db_err:
                 print(f"⚠️ DB kayıt başarısız (analiz yine döner): {db_err}")
 
-        # Save results (in-memory for current session)
         jobs[job_id] = {
             "status": "completed",
+            "client_id": client_id,
             "result": {
                 "success": True,
                 "analysis_id": analysis_id,
@@ -202,17 +283,32 @@ def process_analysis_job(job_id: str, content: str, client_id: str, file_size: i
                 "metrics": results,
             }
         }
+
+        # Push notification gönder
+        if client_id:
+            push_token = get_push_token(client_id)
+            if push_token:
+                await send_push_notification(
+                    push_token,
+                    title="Analiz Tamamlandı! 🎉",
+                    body="Sohbet analizi hazır. Sonularınızı görmek için dokunun.",
+                    data={"job_id": job_id, "screen": "loading"}
+                )
+
     except ValueError as e:
         jobs[job_id] = {
             "status": "error",
+            "client_id": client_id,
             "error_detail": str(e)
         }
     except Exception as e:
         traceback.print_exc()
         jobs[job_id] = {
             "status": "error",
+            "client_id": client_id,
             "error_detail": f"Analiz sırasında beklenmeyen bir hata oluştu: {str(e)}"
         }
+
 
 # ──────────────────────────────────────────────
 #  Endpoints — Core
@@ -228,15 +324,14 @@ async def health_check():
 @limiter.limit("5/minute")
 async def analyze_chat(
     request: Request,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
     """
-    WhatsApp sohbet dosyasını kabul eder ve arkaplanda isleme alır.
+    WhatsApp sohbet dosyasını kabul eder, kuyruğa alır.
     Kabul edilen format: .txt dosyası (WhatsApp dışa aktarma)
     Dosya boyutu limiti: 50 MB
 
-    Döner: {"job_id": "uuid", "status": "processing"}
+    Döner: {"job_id": "uuid", "status": "queued", "queue_position": int}
     """
     # ── Client ID ──
     client_id = request.headers.get("x-client-id", "").strip()
@@ -275,7 +370,6 @@ async def analyze_chat(
         import io
         try:
             with zipfile.ZipFile(io.BytesIO(content_bytes)) as z:
-                # Ilk .txt dosyasini bul
                 txt_filename = next((name for name in z.namelist() if name.endswith(".txt")), None)
                 if not txt_filename:
                     raise HTTPException(status_code=400, detail="ZIP dosyasının içinde .txt uzantılı sohbet metni bulunamadı.")
@@ -298,16 +392,27 @@ async def analyze_chat(
                     detail="Dosya karakter kodlaması okunamadı. UTF-8 formatında bir dosya yükleyin.",
                 )
 
-    # Job oluştur ve arkaplan işlemine at
+    # Job oluştur ve async kuyruğa ekle
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "starting", "result": None, "error_detail": None}
+    queued_count = sum(1 for j in jobs.values() if j.get("status") == "queued")
+    queue_position = queued_count + 1
+
+    jobs[job_id] = {
+        "status": "queued",
+        "client_id": client_id,
+        "queue_position": queue_position,
+        "queued_at": time.time(),
+        "result": None,
+        "error_detail": None,
+    }
     
-    background_tasks.add_task(process_analysis_job, job_id, content, client_id, file_size)
+    await _job_queue.put((job_id, content, client_id, file_size))
 
     return JSONResponse(status_code=202, content={
         "success": True,
         "job_id": job_id,
-        "status": "processing"
+        "status": "queued",
+        "queue_position": queue_position,
     })
 
 
@@ -317,8 +422,50 @@ async def get_job_status(job_id: str, request: Request):
     check_api_key(request)
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Girdiğiniz işlem Kimliği (Job ID) bulunamadı veya süresi dolmuş.")
-        
-    return JSONResponse(content=jobs[job_id])
+
+    job = jobs[job_id]
+    status = job.get("status")
+
+    # Kullanıcıya dönük durum mesajları
+    STATUS_LABELS = {
+        "queued": "🟡 Sırada bekleniyor",
+        "processing_parsing": "⏳ Mesajlar okunuyor...",
+        "processing_nlp": "🧠 Yapay zeka analiz ediyor...",
+        "completed": "✅ Analiz tamamlandı!",
+        "error": "❌ Bir hata oluştu",
+    }
+
+    q_pos = _queue_position(job_id) if status == "queued" else 0
+    
+    # Tahmini süre hesabı (Saniye)
+    # BERT CPU hızı: ~0.06s per message. 
+    # Model yükleme + parse overhead: ~30s
+    msg_count = job.get("message_count", 2000) 
+    base_process_time = 30 + (msg_count * 0.06)
+    
+    estimated_seconds = 0
+    if status == "queued":
+        # Kuyrukta: (Sıra * Ortalama İşleme) / Worker + Mevcut İş
+        estimated_seconds = int((q_pos * 120) / 2) + int(base_process_time)
+    elif status.startswith("processing"):
+        # İşleniyor: Tahmini sürenin %70'i kalmıştır diye varsayalım (NLP en uzun süren kısım)
+        estimated_seconds = int(base_process_time * 0.7)
+
+    response = {
+        "status": status,
+        "status_label": STATUS_LABELS.get(status, status),
+        "is_group": job.get("is_group", False),
+        "queue_position": q_pos,
+        "estimated_seconds": max(estimated_seconds, 15),
+        "result": job.get("result"),
+        "error_detail": job.get("error_detail"),
+    }
+
+    # Kuyrukta ise pozisyonu ekle
+    if status == "queued":
+        response["queue_position"] = _queue_position(job_id)
+
+    return JSONResponse(content=response)
 
 
 # ──────────────────────────────────────────────
@@ -332,6 +479,20 @@ async def check_has_history(request: Request):
     if not client_id:
         return {"has_history": False}
     return {"has_history": has_history(client_id)}
+
+
+class PushTokenRequest(BaseModel):
+    token: str
+
+@app.post("/api/push-token")
+async def register_push_token(body: PushTokenRequest, request: Request):
+    """Kullanıcının Expo push token'ını kaydeder. Analiz tamamlanınca bildirim gönderilir."""
+    client_id = _get_client_id(request)
+    if not body.token or not body.token.startswith("ExponentPushToken"):
+        raise HTTPException(status_code=400, detail="Geçersiz push token formatı.")
+    save_push_token(client_id, body.token)
+    return {"success": True}
+
 
 
 import os
@@ -381,6 +542,36 @@ async def admin_change_password(request: Request, current_pw: str = Form(...), n
         raise HTTPException(status_code=400, detail="Yeni şifre çok kısa.")
     set_admin_pass(new_pw)
     return {"success": True}
+
+
+@app.get("/api/admin/active-jobs")
+async def admin_active_jobs(request: Request, pw: str = Header(None)):
+    """Şu an kuyrukta bekleyen veya işlenen tüm analizleri döner."""
+    check_api_key(request)
+    if pw != get_admin_pass():
+        raise HTTPException(status_code=403, detail="Invalid password")
+    
+    active_list = []
+    now = time.time()
+    for jid, job in jobs.items():
+        # Sadece son 1 saat içindeki işleri listele veya henüz bitmemiş olanları
+        queued_at = job.get("queued_at", 0)
+        status = job.get("status")
+        if now - queued_at < 3600 or status not in ["completed", "error"]:
+            active_list.append({
+                "job_id": jid,
+                "status": status,
+                "client_id": job.get("client_id"),
+                "queued_at": queued_at,
+                "is_group": job.get("is_group", False),
+                "queue_position": _queue_position(jid) if status == "queued" else 0
+            })
+    
+    return {
+        "active_jobs": sorted(active_list, key=lambda x: x["queued_at"], reverse=True),
+        "queue_size": _job_queue.qsize() if _job_queue else 0,
+        "total_in_memory": len(jobs)
+    }
 
 TEST_CHATS_DIR = os.path.join(os.path.dirname(__file__), "../data/test_chats")
 

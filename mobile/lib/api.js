@@ -11,7 +11,9 @@ import { getClientId } from './storage'
 // Android emülatör için: 10.0.2.2
 // iOS simülatör için: localhost
 // Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
-const BASE_URL = 'https://anatomi-api.alidari.dev'
+// const BASE_URL = 'https://anatomi-api.alidari.dev'
+const BASE_URL = 'http://192.168.1.38:8000'
+
 
 async function headers() {
   const clientId = await getClientId()
@@ -213,4 +215,15 @@ export async function verifySubscription(purchaseToken, productId) {
     body: JSON.stringify({ purchaseToken, productId }),
   })
   return resp.json()
+}
+
+export async function registerPushToken(token) {
+  const h = await headers()
+  h['Content-Type'] = 'application/json'
+  const resp = await fetch(`${BASE_URL}/api/push-token`, {
+    method: 'POST',
+    headers: h,
+    body: JSON.stringify({ token }),
+  })
+  return resp.ok
 }

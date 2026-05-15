@@ -291,9 +291,7 @@ def parse_whatsapp_chat(content: str) -> pd.DataFrame:
     df["date"] = df["datetime"].dt.date
 
     senders = df["sender"].unique().tolist()
-    if len(senders) > 2:
-        raise ValueError("Uygulama grup sohbetlerini henüz desteklemiyor, yakında gelecektir.")
-
+    
     return df
 
 
