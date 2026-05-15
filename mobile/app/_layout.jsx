@@ -28,20 +28,28 @@ async function setupPushNotifications() {
     let finalStatus = existingStatus
 
     // Eğer henüz izin istenmemişse, önce açıklama yap (Google Play kuralı)
-    if (existingStatus === 'undetermined' || existingStatus === 'denied') {
-      await new Promise((resolve) => {
-        customAlertRef.current?.alert(
-          "Bildirim İzni 🔔",
-          "Sohbet analizleriniz arka planda işlenirken bittiğinde size haber verebilmek için bildirim iznine ihtiyaç duyuyoruz. Bildirimleri sadece analiz durumu için kullanıyoruz.",
-          [
-            { text: "Şimdi Değil", style: "cancel", onPress: () => resolve(false) },
-            { text: "Anladım", onPress: () => resolve(true) }
-          ]
-        )
+    if (existingStatus === 'undetermined' || finalStatus === 'denied') {
+      const alertShown = await new Promise((resolve) => {
+        if (customAlertRef.current) {
+          customAlertRef.current.alert(
+            "Bildirim İzni 🔔",
+            "Sohbet analizleriniz arka planda işlenirken bittiğinde size haber verebilmek için bildirim iznine ihtiyaç duyuyoruz. Bildirimleri sadece analiz durumu için kullanıyoruz.",
+            [
+              { text: "Şimdi Değil", style: "cancel", onPress: () => resolve(false) },
+              { text: "Anladım", onPress: () => resolve(true) }
+            ]
+          )
+        } else {
+          // Ref hazır değilse bekletme, direkt devam et
+          resolve(true)
+        }
       })
       
-      const { status } = await Notifications.requestPermissionsAsync()
-      finalStatus = status
+      // Eğer kullanıcı "Anladım" dediyse veya ref yoksa sistem iznini iste
+      if (alertShown) {
+        const { status } = await Notifications.requestPermissionsAsync()
+        finalStatus = status
+      }
     }
 
     if (finalStatus !== 'granted') return null
