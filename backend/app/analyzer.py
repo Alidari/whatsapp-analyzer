@@ -1266,7 +1266,7 @@ PROFANITY_WORDS = [
     "bok", "boktan", "sik", "am",
     "pezevenk", "kodumun", "kahpe", "ibne", "gavat",
     "hassiktir", "hssktr", "hay amk", "lan amk", "ulan",
-    "sg", "s.g", "s2m", "s2ş", "skrm", "amcık",
+    "sg", "s.g", "s2m", "s2ş", "skrm", "amcık","s2k"
 ]
 
 # Daha gevşek regex pattern'leri (kısaltma varyasyonları)
