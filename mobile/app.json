@@ -67,7 +67,15 @@
           "paymentProvider": "Play Store"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "updates": {
       "url": "https://u.expo.dev/fc720731-13a1-4b23-b498-938587705665",
