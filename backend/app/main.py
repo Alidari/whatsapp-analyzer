@@ -134,15 +134,35 @@ PACKAGE_NAME = "com.anatomi.app"
 def verify_google_purchase(token: str, product_id: str) -> bool:
     """
     Google Play Android Developer API kullanarak aboneliği doğrular.
-    Service account JSON dosyası 'backend/data/google-service-key.json' yolunda olmalıdır.
+    Çevre değişkeni 'GOOGLE_SERVICE_KEY_JSON' veya yerel diskteki 'backend/data/google-service-key.json' kullanılır.
     """
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        print("⚠️ Service account key not found. Skipping real verification.")
-        return True # Dev mode: always true if key missing
+    scopes = ['https://www.googleapis.com/auth/androidpublisher']
+    creds = None
+
+    # 1. Çevre değişkenini kontrol et (Coolify/Docker Production)
+    env_json = os.environ.get("GOOGLE_SERVICE_KEY_JSON")
+    if env_json:
+        try:
+            import json
+            info = json.loads(env_json)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+            print("✅ Google Credentials loaded from environment variable.")
+        except Exception as env_err:
+            print(f"⚠️ Failed to load Google Credentials from environment variable: {env_err}")
+
+    # 2. Disk üzerindeki dosyayı kontrol et (Lokal Geliştirme / Manuel Yükleme)
+    if not creds:
+        if not os.path.exists(SERVICE_ACCOUNT_FILE):
+            print("⚠️ Service account key not found (no env or file). Skipping real verification.")
+            return True # Dev mode: always true if key missing
+        try:
+            creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+            print("✅ Google Credentials loaded from file.")
+        except Exception as file_err:
+            print(f"❌ Failed to load Google Credentials from file: {file_err}")
+            return False
 
     try:
-        scopes = ['https://www.googleapis.com/auth/androidpublisher']
-        creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
         service = build('androidpublisher', 'v3', credentials=creds)
         
         # Abonelik kontrolü

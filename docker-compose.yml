@@ -10,6 +10,8 @@ services:
     # (Coolify proxy'si kendi iç ağından 8000'e otomatik yönelecek)
     volumes:
       - ./backend/data:/app/data
+    environment:
+      - GOOGLE_SERVICE_KEY_JSON
 
   frontend:
     build: 
