@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
 import { Colors } from '../lib/colors';
 
 export const customAlertRef = React.createRef();
@@ -9,7 +9,13 @@ export const CustomAlert = {
     if (customAlertRef.current) {
       customAlertRef.current.alert(title, message, buttons, options);
     } else {
-      console.warn("CustomAlert reference is not set. Have you mounted CustomAlertRoot?");
+      console.warn("CustomAlert reference is not set. Falling back to native Alert.");
+      const nativeButtons = buttons ? buttons.map(btn => ({
+        text: btn.text,
+        onPress: btn.onPress,
+        style: btn.style
+      })) : undefined;
+      Alert.alert(title, message, nativeButtons, options);
     }
   }
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, AppState } from 'react-native'
+import { View, Text, StyleSheet, Animated, AppState, TouchableOpacity } from 'react-native'
 import { CustomAlert as Alert } from '../components/CustomAlert'
 import { useRouter } from 'expo-router'
 import { Colors } from '../lib/colors'
@@ -73,6 +73,7 @@ export default function LoadingScreen() {
   const [funMsgIdx, setFunMsgIdx] = useState(0)
   const [waitingForAd, setWaitingForAd] = useState(false)
   const [isBackground, setIsBackground] = useState(false)
+  const [completedData, setCompletedData] = useState(null)
   const { isSubscribed } = useSubscription()
   
   const spinAnim = useRef(new Animated.Value(0)).current
@@ -162,6 +163,7 @@ export default function LoadingScreen() {
             clearInterval(pollingRef.current)
             await clearJobId()
             jobDataRef.current = data
+            setCompletedData(data)
             setWaitingForAd(true)
             showResults(data)
           } else if (newStatus === 'error' || newStatus === 'not_found') {
@@ -327,16 +329,27 @@ export default function LoadingScreen() {
           </Text>
         </View>
       )}
-      {/* Progress bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { backgroundColor: config.color }]} />
-      </View>
+      {/* Progress bar / Action Button */}
+      {jobStatus === 'completed' ? (
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={() => showResults(completedData || jobDataRef.current)}
+        >
+          <Text style={styles.actionButtonText}>Sonuçları Gör 🎉</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.progressTrack}>
+          <Animated.View style={[styles.progressFill, { backgroundColor: config.color }]} />
+        </View>
+      )}
 
       {/* Küçük alt hint */}
       <Text style={styles.hint}>
-        {jobStatus === 'queued'
-          ? 'Kapasiteye göre sıranız işleniyor...'
-          : 'Dosya boyutuna göre 1-3 dakika sürebilir'}
+        {jobStatus === 'completed'
+          ? 'Sohbet analiziniz başarıyla tamamlandı!'
+          : jobStatus === 'queued'
+            ? 'Kapasiteye göre sıranız işleniyor...'
+            : 'Dosya boyutuna göre 1-3 dakika sürebilir'}
       </Text>
     </View>
   )
@@ -473,6 +486,24 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 11,
     color: Colors.onSurfaceVariant + '60',
+    textAlign: 'center',
+  },
+  actionButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
   },
 })

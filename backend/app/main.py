@@ -458,10 +458,12 @@ async def get_job_status(job_id: str, request: Request):
     q_pos = _queue_position(job_id) if status == "queued" else 0
     
     # Tahmini süre hesabı (Saniye)
-    # BERT CPU hızı: ~0.06s per message. 
-    # Model yükleme + parse overhead: ~30s
+    # BERT/NLP hızı optimize edildi: ~0.002s per message.
+    # Model yükleme + parse overhead: ~20s
     msg_count = job.get("message_count", 2000) 
-    base_process_time = 30 + (msg_count * 0.06)
+    base_process_time = 20 + (msg_count * 0.002)
+    # Gerçekçi tahminler için süreyi max 5 dakika (300s) ile sınırlıyoruz
+    base_process_time = min(base_process_time, 300)
     
     estimated_seconds = 0
     if status == "queued":

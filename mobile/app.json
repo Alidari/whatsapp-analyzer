@@ -28,7 +28,9 @@
       "edgeToEdgeEnabled": true,
       "package": "com.anatomi.app",
       "versionCode": 1,
-      "permissions": ["INTERNET"]
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -58,7 +60,14 @@
           "androidAppId": "ca-app-pub-1645648125009801~4364181219",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
-      ]
+      ],
+      [
+        "react-native-iap",
+        {
+          "paymentProvider": "Play Store"
+        }
+      ],
+      "expo-font"
     ],
     "updates": {
       "url": "https://u.expo.dev/fc720731-13a1-4b23-b498-938587705665",
