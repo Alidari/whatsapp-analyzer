@@ -192,16 +192,20 @@ def get_admin_stats() -> dict:
         from sqlalchemy.sql import func
         total_scans_used = session.query(func.sum(UserQuota.lifetime_scans)).scalar() or 0
         
-        # Recent analyses (last 5)
-        recent_analyses_qs = session.query(Analysis).order_by(desc(Analysis.created_at)).limit(5).all()
-        recent_analyses = []
-        for a in recent_analyses_qs:
-            recent_analyses.append({
+        # All analyses
+        all_analyses_qs = session.query(Analysis).order_by(desc(Analysis.created_at)).all()
+        all_analyses = []
+        for a in all_analyses_qs:
+            all_analyses.append({
                 "chat_name": a.chat_name,
                 "created_at": a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
                 "total_messages": a.total_messages,
-                "is_unlocked": a.is_unlocked
+                "is_unlocked": a.is_unlocked,
+                "client_id": a.client_id
             })
+
+        # Recent analyses (last 5)
+        recent_analyses = all_analyses[:5]
             
         # Chart data (Last 7 days)
         from datetime import timedelta
@@ -210,8 +214,7 @@ def get_admin_stats() -> dict:
             d = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
             chart_data_dict[d] = 0
             
-        all_analyses = session.query(Analysis.created_at).all()
-        for a in all_analyses:
+        for a in all_analyses_qs:
             if a.created_at:
                 d = a.created_at.strftime("%Y-%m-%d")
                 if d in chart_data_dict:
@@ -227,6 +230,7 @@ def get_admin_stats() -> dict:
             "daily_active_users": daily_active_users,
             "total_scans_used": total_scans_used,
             "recent_analyses": recent_analyses,
+            "all_analyses": all_analyses,
             "chart_labels": chart_labels,
             "chart_values": chart_values
         }

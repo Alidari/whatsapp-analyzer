@@ -244,6 +244,53 @@ export default function AdminPanel({ onClose }) {
                 </div>
               </div>
             </div>
+
+          {/* All Analyses Table (Tüm Analizler) */}
+          <div className="rounded-xl border border-gray-800 bg-[#111b21] p-0 overflow-hidden">
+              <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-gray-400 uppercase tracking-widest">All Analyses (Tüm Analizler)</h3>
+                <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-gray-300 font-medium">
+                  {stats?.all_analyses?.length || 0} Analyses
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-[#111b21] text-gray-500 border-b border-gray-800 sticky top-0 z-10 shadow-sm">
+                    <tr>
+                      <th className="px-6 py-3 font-medium bg-[#111b21]">Chat Name</th>
+                      <th className="px-6 py-3 font-medium bg-[#111b21]">Client ID</th>
+                      <th className="px-6 py-3 font-medium bg-[#111b21]">Date</th>
+                      <th className="px-6 py-3 font-medium bg-[#111b21]">Messages</th>
+                      <th className="px-6 py-3 font-medium bg-[#111b21]">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(stats?.all_analyses || []).map((r, i) => (
+                      <tr key={i} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-[#59dcb5]">{r.chat_name}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-gray-400 select-all" title={r.client_id}>
+                          {r.client_id ? `${r.client_id.substring(0, 8)}...${r.client_id.substring(r.client_id.length - 8)}` : '-'}
+                        </td>
+                        <td className="px-6 py-4 text-gray-400">{r.created_at}</td>
+                        <td className="px-6 py-4 text-gray-300">{r.total_messages?.toLocaleString() || 0}</td>
+                        <td className="px-6 py-4 text-xs font-bold">
+                          {r.is_unlocked ? (
+                            <span className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">🔓 UNLOCKED</span>
+                          ) : (
+                            <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">🔒 LOCKED</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {(stats?.all_analyses || []).length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="text-center py-10 text-gray-500">Henüz analiz bulunmuyor.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </>
         )}
 
