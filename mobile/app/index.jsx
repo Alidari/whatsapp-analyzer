@@ -10,14 +10,16 @@ import { setJobId, getJobId, hasSeenOnboarding } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
 import { Ionicons } from '@expo/vector-icons'
 import { useSubscription } from '../components/SubscriptionContext'
+import SubscriptionModal from '../components/SubscriptionModal'
 
 export default function IndexScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
-  const { checkSubscription, quota } = useSubscription()
+  const { isSubscribed, checkSubscription, quota } = useSubscription()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
+  const [subModalVisible, setSubModalVisible] = useState(false)
 
   useEffect(() => {
     // Preload Rewarded Ad when the screen starts
@@ -161,24 +163,37 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Settings Icon */}
-      <TouchableOpacity 
-        style={styles.settingsBtn} 
-        onPress={() => router.push('/settings')}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="settings-outline" size={26} color={Colors.onSurfaceVariant} />
-      </TouchableOpacity>
+      {/* Header Row (Spotify / Native Style) */}
+      <View style={styles.homeHeader}>
+        {/* Quota Badge / Premium Badge */}
+        {isSubscribed ? (
+          <View style={[styles.quotaBadgeCompact, { borderColor: 'rgba(255, 215, 0, 0.3)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }]}>
+            <Ionicons name="star" size={12} color="#FFD700" />
+            <Text style={[styles.quotaTextCompact, { color: '#FFD700', fontWeight: '700' }]}>
+              Premium 👑
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={styles.quotaBadgeCompact}
+            onPress={() => setSubModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="flash-outline" size={12} color={Colors.primary} />
+            <Text style={styles.quotaTextCompact}>
+              Kalan: {quota.max - quota.used} / {quota.max} • <Text style={{ color: '#FFD700', fontWeight: 'bold' }}>Yükselt</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
 
-      {/* Logo */}
-      <Text style={styles.logo}>Anatomi</Text>
-
-      {/* Quota Badge */}
-      <View style={styles.quotaBadge}>
-        <Ionicons name="flash-outline" size={14} color={Colors.primary} />
-        <Text style={styles.quotaText}>
-          Günlük Kalan: {quota.max - quota.used} / {quota.max}
-        </Text>
+        {/* Settings Icon */}
+        <TouchableOpacity 
+          style={styles.settingsBtnCompact} 
+          onPress={() => router.push('/settings')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={24} color={Colors.onSurfaceVariant} />
+        </TouchableOpacity>
       </View>
 
       {/* Hero */}
@@ -212,13 +227,20 @@ export default function IndexScreen() {
         </LinearGradient>
       </TouchableOpacity>
 
-      <Text style={styles.hint}>
-        WhatsApp → Sohbet → ⋮ → Sohbeti dışa aktar → Medyasız
+      {/* Privacy Notice */}
+      <Text style={styles.privacyText}>
+        🔒 Analiz %100 güvenlidir • Sohbetler asla saklanmaz
       </Text>
 
-      {/* Privacy Badge */}
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>🔒 Analiz %100 güvenli • Sohbetler asla saklanmaz</Text>
+      {/* Nasıl Yapılır Rehberi */}
+      <View style={styles.hintContainer}>
+        <Text style={styles.hintTitle}>Nasıl Yapılır?</Text>
+        <Text style={styles.hintText}>
+          WhatsApp → Sohbet → ⋮ → Sohbeti dışa aktar → Medyasız
+        </Text>
+        <Text style={styles.hintNote}>
+          *(Bazı cihazlarda "Sohbeti dışa aktar" seçeneği "Diğer" menüsünün altında olabilir)*
+        </Text>
       </View>
 
       {/* History Link */}
@@ -230,7 +252,13 @@ export default function IndexScreen() {
       </TouchableOpacity>
 
       {/* Bottom Banner */}
-      <AppBannerAd />
+      {!isSubscribed && <AppBannerAd />}
+
+      {/* Subscription purchase modal */}
+      <SubscriptionModal 
+        visible={subModalVisible} 
+        onClose={() => setSubModalVisible(false)} 
+      />
     </View>
   )
 }
@@ -249,52 +277,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsBtn: {
+  homeHeader: {
     position: 'absolute',
     top: 60,
-    right: 25,
-    padding: 10,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     zIndex: 10,
   },
-  logo: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.primary,
-    letterSpacing: -1,
-    marginBottom: 20,
-  },
-  premiumBadge: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-  },
-  premiumBadgeText: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  quotaBadge: {
+  quotaBadgeCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  quotaText: {
+  quotaTextCompact: {
     color: '#ccc',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  settingsBtnCompact: {
+    padding: 6,
   },
   title: {
     fontSize: 42,
@@ -329,23 +339,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.onPrimary,
   },
-  hint: {
+  hintContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  hintTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  hintText: {
     fontSize: 12,
+    color: Colors.onSurface,
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  hintNote: {
+    fontSize: 11,
     color: Colors.outline,
     textAlign: 'center',
-    marginTop: 16,
-    lineHeight: 18,
+    lineHeight: 15,
   },
-  badge: {
-    marginTop: 32,
-    backgroundColor: Colors.surfaceContainerHighest,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontSize: 11,
-    color: Colors.primary,
+  privacyText: {
+    fontSize: 12,
+    color: Colors.outline,
+    marginTop: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   historyLink: {
     marginTop: 24,

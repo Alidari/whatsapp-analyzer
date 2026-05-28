@@ -12,6 +12,8 @@ import {
   getHistory, getHistoryDetail, deleteHistoryItem, unlockHistory 
 } from '../lib/api'
 import HistoryCard from '../components/HistoryCard'
+import { useSubscription } from '../components/SubscriptionContext'
+import SubscriptionModal from '../components/SubscriptionModal'
 
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
 
@@ -21,6 +23,8 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [loadingId, setLoadingId] = useState(null)
+  const { isSubscribed } = useSubscription()
+  const [subModalVisible, setSubModalVisible] = useState(false)
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -42,15 +46,19 @@ export default function HistoryScreen() {
   const handleSelect = async (item) => {
     const { id, is_unlocked } = item
     
-    // Kilitliyse Reklam Göster
-    if (!is_unlocked) {
+    // Premium ise kilitsiz aç veya kilitliyse reklam/premium teklif et
+    if (!is_unlocked && !isSubscribed) {
       Alert.alert(
         "Kilitli Analiz 🔒",
-        "Bu raporu yeniden görüntülemek üzere kilidini açabilirsiniz.",
+        "Bu raporu reklamsız görüntülemek için Premium'a geçebilir veya reklam izleyerek kilidi açabilirsiniz.",
         [
           { text: 'İptal', style: 'cancel' },
           { 
-            text: 'Kilidi Aç', 
+            text: 'Premium\'a Geç 👑', 
+            onPress: () => setSubModalVisible(true) 
+          },
+          { 
+            text: 'Reklam İzle 🔓', 
             onPress: async () => {
               try {
                 setLoadingId(id)
@@ -182,6 +190,21 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Quota / Upgrade Banner */}
+      {!isSubscribed && (
+        <TouchableOpacity 
+          style={styles.quotaHeader}
+          onPress={() => setSubModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.quotaBadge}>
+            <Ionicons name="star" size={12} color="#FFD700" />
+            <Text style={styles.quotaText}>Reklamsız ve sınırsız analiz için Premium'a geç</Text>
+          </View>
+          <Text style={styles.upgradeText}>Yükselt 👑</Text>
+        </TouchableOpacity>
+      )}
+
       {analyses.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Ionicons 
@@ -234,7 +257,13 @@ export default function HistoryScreen() {
       )}
 
       {/* Banner Reklam */}
-      <AppBannerAd />
+      {!isSubscribed && <AppBannerAd />}
+
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        visible={subModalVisible} 
+        onClose={() => setSubModalVisible(false)} 
+      />
     </View>
   )
 }

@@ -589,7 +589,7 @@ export default function StoryMode({ data, onClose }) {
         const file = new File([blob], 'anatomi-hikaye.png', { type: 'image/png' })
         const shareData = {
           title: 'Anatomi WhatsApp Analizi',
-          text: 'Sohbet analizimizin sonuçlarına bak! 😂 Sen de kendi şifreli analizini çıkarmak istersen tıkla: https://anatomi.app',
+          text: 'Sohbet analizimizin sonuçlarına bak! 😂 Sen de kendi şifreli analizini çıkarmak istersen tıkla: https://anatomi.alidari.dev',
           files: [file]
         }
         
@@ -604,7 +604,7 @@ export default function StoryMode({ data, onClose }) {
           a.href = url
           a.download = 'anatomi-hikaye.png'
           a.click()
-          alert("Görsel cihazına indirildi! Uygulama linkini arkadaşlarına WhatsApp üzerinden gönderebilirsin: https://anatomi.app")
+          alert("Görsel cihazına indirildi! Uygulama linkini arkadaşlarına WhatsApp üzerinden gönderebilirsin: https://anatomi.alidari.dev")
         }
       }, 100)
 

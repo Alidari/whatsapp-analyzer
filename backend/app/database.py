@@ -297,6 +297,18 @@ def update_subscription(client_id: str, is_subscribed: bool):
         session.close()
 
 
+def is_user_subscribed(client_id: str) -> bool:
+    """Kullanıcının premium abone olup olmadığını döner."""
+    if not client_id:
+        return False
+    session = _get_session()
+    try:
+        quota = _get_or_create_quota(session, client_id)
+        return bool(quota.is_subscribed)
+    finally:
+        session.close()
+
+
 def save_push_token(client_id: str, token: str):
     """Kullanıcının Expo push token'ını kaydeder."""
     session = _get_session()

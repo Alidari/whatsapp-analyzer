@@ -40,7 +40,7 @@ from .database import (
     delete_analysis, rename_analysis, has_history, compute_chat_hash,
     check_quota, use_quota, earn_quota, unlock_history, get_admin_stats,
     update_subscription, _get_or_create_quota, _get_session, delete_user_data,
-    save_push_token, get_push_token
+    save_push_token, get_push_token, is_user_subscribed
 )
 
 # ──────────────────────────────────────────────
@@ -51,7 +51,7 @@ from .database import (
 jobs: Dict[str, dict] = {}
 
 # Async iş kuyruğu — startup'ta başlatma sırasında oluşturulacak
-_job_queue: asyncio.Queue = None
+_job_queue: asyncio.PriorityQueue = None
 
 MAX_WORKERS = 2  # Aynı anda max kaç analiz yapılsın
 
@@ -77,7 +77,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 async def startup_event():
     global _job_queue
     init_db()
-    _job_queue = asyncio.Queue()
+    _job_queue = asyncio.PriorityQueue()
     # MAX_WORKERS kadar arka plan worker başlat
     for i in range(MAX_WORKERS):
         asyncio.create_task(analysis_worker(f"worker-{i}"))
@@ -223,19 +223,29 @@ async def send_push_notification(push_token: str, title: str, body: str, data: d
 # ──────────────────────────────────────────────
 
 def _queue_position(job_id: str) -> int:
-    """Kuyruktaki job'un sıra numarasını hesaplar (1-basalı)."""
-    queued = [jid for jid, j in jobs.items() if j.get("status") == "queued"]
-    try:
-        return queued.index(job_id) + 1
-    except ValueError:
+    """Öncelikli kuyruktaki job'un sıra numarasını hesaplar (1-basalı)."""
+    if not _job_queue or _job_queue.empty():
         return 0
+    try:
+        # _job_queue._queue, heappush/heappop ile yönetilen bir listedir.
+        # Sıralama sırasını tam görmek için kopyasını sıralıyoruz.
+        items = list(_job_queue._queue)
+        items.sort()  # (priority, timestamp, job_id, ...)
+        for index, item in enumerate(items):
+            if item[2] == job_id:
+                return index + 1
+    except Exception as e:
+        print(f"⚠️ Sıra pozisyonu hesaplanırken hata oluştu: {e}")
+    return 0
 
 
 async def analysis_worker(name: str):
     """Sürekli çalışan arka plan worker. Kuyruktan job alır ve işler."""
     print(f"💡 {name} started")
     while True:
-        job_id, content, client_id, file_size = await _job_queue.get()
+        # PriorityQueue.get() bir tuple döner: (priority, timestamp, job_id, content, client_id, file_size)
+        item = await _job_queue.get()
+        priority, timestamp, job_id, content, client_id, file_size = item
         try:
             await run_analysis_job(job_id, content, client_id, file_size)
         except Exception as e:
@@ -412,21 +422,28 @@ async def analyze_chat(
                     detail="Dosya karakter kodlaması okunamadı. UTF-8 formatında bir dosya yükleyin.",
                 )
 
-    # Job oluştur ve async kuyruğa ekle
+    # Job oluştur ve öncelikli kuyruğa ekle
     job_id = str(uuid.uuid4())
-    queued_count = sum(1 for j in jobs.values() if j.get("status") == "queued")
-    queue_position = queued_count + 1
+    
+    # Premium durumuna göre öncelik belirle: Premium: 1, Normal: 2
+    is_premium = is_user_subscribed(client_id)
+    priority = 1 if is_premium else 2
+    timestamp = time.time()
 
     jobs[job_id] = {
         "status": "queued",
         "client_id": client_id,
-        "queue_position": queue_position,
-        "queued_at": time.time(),
+        "queue_position": 0,  # Kuyruğa eklendikten sonra tam yerini alacak
+        "queued_at": timestamp,
         "result": None,
         "error_detail": None,
     }
     
-    await _job_queue.put((job_id, content, client_id, file_size))
+    await _job_queue.put((priority, timestamp, job_id, content, client_id, file_size))
+    
+    # Gerçek öncelikli sıra numarasını hesapla
+    queue_position = _queue_position(job_id)
+    jobs[job_id]["queue_position"] = queue_position
 
     return JSONResponse(status_code=202, content={
         "success": True,

@@ -9,11 +9,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../lib/colors'
 import { deleteUserData } from '../lib/api'
 import { clearAllData } from '../lib/storage'
-// import * as Updates from 'expo-updates' (Moved to internal usage)
+import { useSubscription } from '../components/SubscriptionContext'
+import SubscriptionModal from '../components/SubscriptionModal'
 
 export default function SettingsScreen() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { isSubscribed } = useSubscription()
+  const [subModalVisible, setSubModalVisible] = useState(false)
 
   const handleDeleteData = () => {
     Alert.alert(
@@ -65,6 +68,35 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Üyelik / Subscription Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Üyelik</Text>
+          
+          {isSubscribed ? (
+            <View style={[styles.item, styles.premiumItem]}>
+              <View style={styles.itemLeft}>
+                <Ionicons name="star" size={22} color="#FFD700" />
+                <View>
+                  <Text style={[styles.itemText, { color: '#FFD700' }]}>Anatomi Premium</Text>
+                  <Text style={styles.subtext}>Aboneliğiniz Aktif • Sınırsız Analiz 👑</Text>
+                </View>
+              </View>
+              <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.item} onPress={() => setSubModalVisible(true)} activeOpacity={0.7}>
+              <View style={styles.itemLeft}>
+                <Ionicons name="star-outline" size={22} color="#FFD700" />
+                <View>
+                  <Text style={styles.itemText}>Premium'a Yükselt</Text>
+                  <Text style={styles.subtext}>Reklamsız, hızlı ve sınırsız deneyim</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.outline} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Profile / Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gizlilik ve Veri</Text>
@@ -157,6 +189,12 @@ export default function SettingsScreen() {
           Kişisel verileriniz asla kalıcı olarak saklanmaz.
         </Text>
       </ScrollView>
+
+      {/* Subscription purchase modal */}
+      <SubscriptionModal 
+        visible={subModalVisible} 
+        onClose={() => setSubModalVisible(false)} 
+      />
     </View>
   )
 }
@@ -225,6 +263,15 @@ const styles = StyleSheet.create({
   dangerItem: {
     backgroundColor: 'rgba(255, 68, 68, 0.05)',
     borderColor: 'rgba(255, 68, 68, 0.1)',
+  },
+  premiumItem: {
+    backgroundColor: 'rgba(255, 215, 0, 0.04)',
+    borderColor: 'rgba(255, 215, 0, 0.15)',
+  },
+  subtext: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
   },
   versionText: {
     color: Colors.outline,
