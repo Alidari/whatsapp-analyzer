@@ -1,25 +1,17 @@
 /**
  * Anatomi — Backend API Client (React Native)
- *
- * Geliştirme: bilgisayarın LAN IP'si
- * Üretim: gerçek domain
  */
 import * as FileSystem from 'expo-file-system/legacy'
 import { getClientId } from './storage'
+import { API_BASE_URL, API_KEY } from './config'
 
-// ── Geliştirme sırasında bilgisayarının LAN IP'sini yaz ──
-// Android emülatör için: 10.0.2.2
-// iOS simülatör için: localhost
-// Fiziksel cihaz için: bilgisayarın LAN IP'si (ör. 192.168.1.x)
-const BASE_URL = 'https://anatomi-api.alidari.dev'
-// const BASE_URL = 'http://192.168.1.38:8000'
-
+const BASE_URL = API_BASE_URL
 
 async function headers() {
   const clientId = await getClientId()
   return {
     'X-Client-ID': clientId,
-    'X-API-Key': 'AnatomiSecureKey2026!',
+    'X-API-Key': API_KEY,
   }
 }
 
@@ -47,7 +39,7 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
       body: formData,
       headers: {
         'X-Client-ID': clientId,
-        'X-API-Key': 'AnatomiSecureKey2026!'
+        'X-API-Key': API_KEY,
       },
     })
 
@@ -76,7 +68,7 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
       uploadType: FileSystem.FileSystemUploadType?.MULTIPART ?? 1,
       headers: {
         'X-Client-ID': clientId,
-        'X-API-Key': 'AnatomiSecureKey2026!'
+        'X-API-Key': API_KEY,
       },
       mimeType: mimeType,
       parameters: {},
@@ -98,7 +90,7 @@ export async function uploadFile(fileUri, fileName, fileObj = null, resolvedMime
 
 export async function checkJobStatus(jobId) {
   const resp = await fetch(`${BASE_URL}/api/status/${jobId}`, {
-    headers: { 'X-API-Key': 'AnatomiSecureKey2026!' }
+    headers: { 'X-API-Key': API_KEY }
   })
   if (!resp.ok) {
     if (resp.status === 404) return { status: 'not_found' }
@@ -113,7 +105,10 @@ export async function checkJobStatus(jobId) {
 
 export async function healthCheck() {
   try {
-    const resp = await fetch(`${BASE_URL}/api/health`, { timeout: 5000 })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    const resp = await fetch(`${BASE_URL}/api/health`, { signal: controller.signal })
+    clearTimeout(timeoutId)
     return resp.ok
   } catch {
     return false

@@ -4,6 +4,7 @@ import { View, Platform } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { Colors } from '../lib/colors'
 import { SubscriptionProvider } from '../components/SubscriptionContext'
+import ErrorBoundary from '../components/ErrorBoundary'
 import UpdateChecker from '../components/UpdateChecker'
 import { CustomAlertRoot, customAlertRef } from '../components/CustomAlert'
 import * as Notifications from 'expo-notifications'
@@ -72,8 +73,10 @@ export default function RootLayout() {
   const notifListenerRef = useRef(null)
 
   useEffect(() => {
-    // Push token kur
-    setupPushNotifications()
+    // Push token kur — customAlertRef'in mount olması için kısa gecikme
+    const pushTimer = setTimeout(() => {
+      setupPushNotifications()
+    }, 1000)
 
     // Bildirime tıklama — loading ekranına yönlendir
     notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
@@ -84,6 +87,7 @@ export default function RootLayout() {
     })
 
     return () => {
+      clearTimeout(pushTimer)
       if (notifListenerRef.current) {
         Notifications.removeNotificationSubscription(notifListenerRef.current)
       }
@@ -91,19 +95,21 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <SubscriptionProvider>
-      <View style={{ flex: 1, backgroundColor: Colors.background }}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: Colors.background },
-            animation: 'fade',
-          }}
-        />
-        <UpdateChecker />
-        <CustomAlertRoot ref={customAlertRef} />
-      </View>
-    </SubscriptionProvider>
+    <ErrorBoundary>
+      <SubscriptionProvider>
+        <View style={{ flex: 1, backgroundColor: Colors.background }}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: Colors.background },
+              animation: 'fade',
+            }}
+          />
+          <UpdateChecker />
+          <CustomAlertRoot ref={customAlertRef} />
+        </View>
+      </SubscriptionProvider>
+    </ErrorBoundary>
   )
 }

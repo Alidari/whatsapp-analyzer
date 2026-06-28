@@ -6,6 +6,7 @@ import {
 import { CustomAlert as Alert } from '../components/CustomAlert'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import * as Application from 'expo-application'
 import { Colors } from '../lib/colors'
 import { deleteUserData } from '../lib/api'
 import { clearAllData } from '../lib/storage'
@@ -179,7 +180,8 @@ export default function SettingsScreen() {
               <Text style={styles.itemText}>Versiyon</Text>
             </View>
             <Text style={styles.versionText}>
-              1.0.0
+              {Application.nativeApplicationVersion || '1.0.0'}
+              {Application.nativeBuildVersion ? ` (${Application.nativeBuildVersion})` : ''}
             </Text>
           </View>
         </View>

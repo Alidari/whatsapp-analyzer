@@ -363,8 +363,8 @@ async def analyze_chat(
 
     Döner: {"job_id": "uuid", "status": "queued", "queue_position": int}
     """
-    # ── Client ID ──
-    client_id = request.headers.get("x-client-id", "").strip()
+    # ── API Key + Client ID ──
+    client_id = _get_client_id(request)
     
     if client_id and not check_quota(client_id):
         raise HTTPException(status_code=403, detail="LIMIT_REACHED")
@@ -514,6 +514,7 @@ async def get_job_status(job_id: str, request: Request):
 @app.get("/api/has-history")
 async def check_has_history(request: Request):
     """Kullanıcının en az bir geçmiş analizi olup olmadığını kontrol eder."""
+    check_api_key(request)
     client_id = request.headers.get("x-client-id", "").strip()
     if not client_id:
         return {"has_history": False}

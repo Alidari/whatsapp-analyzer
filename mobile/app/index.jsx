@@ -9,6 +9,7 @@ import { uploadFile, hasHistory, earnQuota } from '../lib/api'
 import { setJobId, getJobId, hasSeenOnboarding } from '../lib/storage'
 import { showRewardedAsync, loadRewarded, AppBannerAd } from '../components/Ads'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSubscription } from '../components/SubscriptionContext'
 import SubscriptionModal from '../components/SubscriptionModal'
 
@@ -16,6 +17,7 @@ export default function IndexScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
   const { isSubscribed, checkSubscription, quota } = useSubscription()
+  const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isPicking, setIsPicking] = useState(false)
@@ -164,7 +166,7 @@ export default function IndexScreen() {
   return (
     <View style={styles.container}>
       {/* Header Row (Spotify / Native Style) */}
-      <View style={styles.homeHeader}>
+      <View style={[styles.homeHeader, { top: insets.top + 10 }]}>
         {/* Quota Badge / Premium Badge */}
         {isSubscribed ? (
           <View style={[styles.quotaBadgeCompact, { borderColor: 'rgba(255, 215, 0, 0.3)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }]}>
@@ -279,7 +281,7 @@ const styles = StyleSheet.create({
   },
   homeHeader: {
     position: 'absolute',
-    top: 60,
+    top: 0,
     left: 20,
     right: 20,
     flexDirection: 'row',

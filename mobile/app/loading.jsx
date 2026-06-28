@@ -79,6 +79,7 @@ export default function LoadingScreen() {
   const spinAnim = useRef(new Animated.Value(0)).current
   const pulseAnim = useRef(new Animated.Value(1)).current
   const iconScaleAnim = useRef(new Animated.Value(1)).current
+  const progressAnim = useRef(new Animated.Value(0)).current
   const jobDataRef = useRef(null)
   const pollingRef = useRef(null)
   const appStateRef = useRef(AppState.currentState)
@@ -111,6 +112,20 @@ export default function LoadingScreen() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
       ])
     ).start()
+  }, [])
+
+  // Indeterminate progress bar animasyonu
+  useEffect(() => {
+    const animate = () => {
+      progressAnim.setValue(0)
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: false,
+      }).start(() => animate())
+    }
+    animate()
+    return () => progressAnim.stopAnimation()
   }, [])
 
   // Icon duruma göre scale animasyonu
@@ -160,50 +175,39 @@ export default function LoadingScreen() {
           }
 
           if (newStatus === 'completed' && data.result) {
-            clearInterval(pollingRef.current)
+            clearTimeout(pollingRef.current)
             await clearJobId()
             jobDataRef.current = data
             setCompletedData(data)
             setWaitingForAd(true)
             showResults(data)
           } else if (newStatus === 'error' || newStatus === 'not_found') {
-            clearInterval(pollingRef.current)
+            clearTimeout(pollingRef.current)
             await clearJobId()
             Alert.alert(
               'Analiz Başarısız ❌',
               data.error_detail || 'Bilinmeyen bir hata oluştu.',
               [{ text: 'Tamam', onPress: () => router.replace('/') }]
             )
+          } else {
+            // Dinamik polling: arka planda 15s, ön planda 3s
+            const delay = appStateRef.current === 'active' ? 3000 : 15000
+            pollingRef.current = setTimeout(poll, delay)
           }
         } catch (e) {
-          // Network blip — sessizce geç
+          // Network blip — sessizce geç, tekrar dene
+          const delay = appStateRef.current === 'active' ? 3000 : 15000
+          pollingRef.current = setTimeout(poll, delay)
         }
       }
 
-      // Arka planda 15s, ön planda 3s polling
-      const getInterval = () => appStateRef.current === 'active' ? 3000 : 15000
-      
       poll() // İlk anında kontrol
-      pollingRef.current = setInterval(poll, 3000)
-      
-      // Dinamik interval (arka plan geçişlerinde)
-      const adaptInterval = setInterval(() => {
-        if (!active) return
-        const targetMs = getInterval()
-        // Mevcut interval ile hedef arasında fark varsa yenile (basit yaklaşım)
-      }, 5000)
-
-      return () => {
-        clearInterval(pollingRef.current)
-        clearInterval(adaptInterval)
-      }
     }
 
-    const cleanup = startPolling()
+    startPolling()
     return () => {
       active = false
-      if (pollingRef.current) clearInterval(pollingRef.current)
-      cleanup?.then?.(fn => fn?.())
+      if (pollingRef.current) clearTimeout(pollingRef.current)
     }
   }, [waitingForAd])
 
@@ -339,7 +343,17 @@ export default function LoadingScreen() {
         </TouchableOpacity>
       ) : (
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, { backgroundColor: config.color }]} />
+          <Animated.View style={[styles.progressFill, {
+            backgroundColor: config.color,
+            width: progressAnim.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: ['0%', '60%', '0%'],
+            }),
+            left: progressAnim.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: ['0%', '20%', '100%'],
+            }),
+          }]} />
         </View>
       )}
 
@@ -478,10 +492,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   progressFill: {
-    width: '40%',
     height: '100%',
     borderRadius: 2,
     opacity: 0.8,
+    position: 'absolute',
   },
   hint: {
     fontSize: 11,
@@ -507,22 +521,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 })
-
-const extraStyles = StyleSheet.create({
-  estimateBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  estimateText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
